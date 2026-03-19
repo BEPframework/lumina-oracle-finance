@@ -194,4 +194,4 @@ MIT License — use freely, cite honestly.
 
 **Nicolas B. Quiroz, MD**  
 Independent researcher · nicolasquirozmd.com  
-GitHub: github.com/senseizuna · github.com/BEPframework
+GitHub: github.com/BEPframework
