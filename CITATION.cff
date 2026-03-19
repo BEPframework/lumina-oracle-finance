@@ -1,0 +1,58 @@
+cff-version: 1.2.0
+message: "If you use this software or the M-FDE framework in your research, please cite it as below."
+type: software
+title: "Lumina Oracle Finance: A Market Fractal Dynamics Engine"
+abstract: >
+  A browser-based implementation of the Market Fractal Dynamics Equation (M-FDE):
+  D^H P(t) = α(H±)·Caputo[P] + β·Σ_k P^D_f(ω_k)·cos(ω_k·t) + σ·dL_α^H(t).
+  Computes multifractal spectrum (MF-DFA), asymmetric Hurst exponents (H+/H−),
+  Lévy tail index (Hill estimator), fractional α-stable motion (fαM noise),
+  and 4-state HMM regime classification for financial time series.
+  Runs entirely in the browser as a single HTML file.
+authors:
+  - family-names: "Quiroz"
+    given-names: "Nicolas B."
+    name-suffix: "MD"
+    orcid: ""
+    email: ""
+    affiliation: "Independent Researcher"
+    website: "https://nicolasquirozmd.com"
+version: "7.3"
+date-released: "2026-03-19"
+url: "https://github.com/BEPframework/lumina-oracle-finance"
+repository-code: "https://github.com/BEPframework/lumina-oracle-finance"
+license: MIT
+keywords:
+  - fractal dynamics
+  - Hurst exponent
+  - multifractal analysis
+  - MF-DFA
+  - fractional calculus
+  - Caputo derivative
+  - Lévy stable distribution
+  - market regime detection
+  - HMM
+  - financial time series
+  - stochastic differential equations
+  - nonlinear dynamics
+references:
+  - type: article
+    title: "The BEP Framework: Belonging, Energy, and Prediction as Substrates of Conscious Systems"
+    authors:
+      - family-names: "Quiroz"
+        given-names: "Nicolas B."
+        name-suffix: "MD"
+    repository-code: "https://github.com/BEPframework"
+    notes: "Theoretical foundation shared with the M-FDE market framework"
+  - type: patent
+    title: "HRV Analysis System Based on the Ψuniverse Equation"
+    authors:
+      - family-names: "Quiroz"
+        given-names: "Nicolas B."
+        name-suffix: "MD"
+    patent-number: "US20260022228A1"
+    date-released: "2025-06-04"
+    notes: >
+      Patent-pending HRV system applying the same fractional dynamics
+      and multifractal geometry framework to physiological time series.
+      Public disclosure scheduled December 2026.
