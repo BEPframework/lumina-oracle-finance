@@ -180,8 +180,6 @@ If you use Lumina Oracle Finance or the M-FDE framework in research, please cite
 
 > Quiroz, N.B. (2026). *Lumina Oracle Finance: A Market Fractal Dynamics Engine Implementing the M-FDE Equation*. GitHub. https://github.com/BEPframework/lumina-oracle-finance
 
-The M-FDE framework is related to the Ψuniverse HRV analysis system (patent pending US20260022228A1, filed June 4, 2025).
-
 ---
 
 ## License
