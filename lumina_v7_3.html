@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LUMINA ORACLE FINANCE v7.3 • True M-FDE (Nicolas B. Quiroz, MD)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600&display=swap");
+    body { font-family: "Inter", system-ui; }
+    .orbitron { font-family: "Orbitron", sans-serif; }
+    .glass { background: rgba(255,255,255,0.07); backdrop-filter: blur(24px); border: 1px solid rgba(255,255,255,0.12); }
+    .neon { box-shadow: 0 0 40px rgba(34,211,238,0.45); }
+    .mini { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); }
+    .scrollbarThin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scrollbarThin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    .pill { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.12); }
+    .btn { background: rgba(255,255,255,0.10); }
+    .btn:hover { background: rgba(255,255,255,0.18); }
+    .btnPrimary { background: rgba(16,185,129,0.75); }
+    .btnPrimary:hover { background: rgba(16,185,129,0.9); }
+    .btnDanger { background: rgba(239,68,68,0.75); }
+    .btnDanger:hover { background: rgba(239,68,68,0.9); }
+    .tab { background: rgba(255,255,255,0.08); }
+    .tabActive { background: rgba(34,211,238,0.20); border: 1px solid rgba(34,211,238,0.35); }
+    a { word-break: break-word; }
+    .regime-trending  { color: #34d399; }
+    .regime-reverting { color: #f87171; }
+    .regime-volatile  { color: #fbbf24; }
+    .regime-calm      { color: #60a5fa; }
+    .warn-badge { background: rgba(251,191,36,0.18); border: 1px solid rgba(251,191,36,0.4); color: #fbbf24; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen">
+  <div class="max-w-7xl mx-auto p-6">
+
+    <div class="bg-emerald-900/70 border border-emerald-400 text-emerald-200 p-4 rounded-3xl mb-6 text-center">
+      v7.0 — True M-FDE: D^H P(t) = α(H±)·Caputo[P] + β·Σ_k P^D_f(ω_k)·cos(ω_k·t) + σ·dL_α^H(t)
+      · MF-DFA multifractal spectrum · fαM correlated Lévy noise · Asymmetric H± · Scale-dependent D_f(ω)
+    </div>
+
+    <div class="flex justify-between items-center mb-8 gap-4 flex-wrap">
+      <div class="flex items-center gap-4">
+        <div onclick="loadAssetWithRealtime('NVDA')" class="w-16 h-16 rounded-3xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center text-5xl neon cursor-pointer">🌌</div>
+        <div>
+          <h1 class="text-5xl orbitron tracking-tighter font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-300 to-purple-300">LUMINA ORACLE</h1>
+          <p class="text-zinc-400">v7.3 • True M-FDE — Nicolas B. Quiroz, MD</p>
+        </div>
+      </div>
+      <div class="flex-1 max-w-xl">
+        <input id="searchInput" type="text" placeholder="Stock: AAPL, TSLA, NVDA. Crypto: BTC, ETH, XRP, SOL, ADA."
+               class="w-full glass px-8 py-5 rounded-3xl text-xl focus:outline-none focus:border-cyan-400">
+      </div>
+      <div class="flex gap-3">
+        <button onclick="showKeyModal()" class="px-6 py-4 glass rounded-3xl text-xl">🔑</button>
+        <button onclick="applyRealtime()" class="px-6 py-4 glass rounded-3xl text-xl">Apply RT</button>
+      </div>
+    </div>
+
+    <div class="flex gap-8 mb-8 flex-wrap">
+      <!-- LEFT PANEL -->
+      <div class="glass rounded-3xl p-8 w-96 flex-shrink-0 neon">
+        <div id="symbolDisplay" class="text-3xl font-mono font-bold text-cyan-400">NVDA</div>
+        <div id="priceDisplay" class="text-7xl font-mono font-bold mt-2">0.00</div>
+        <div id="changeDisplay" class="text-3xl font-medium mt-1 text-zinc-400">—</div>
+        <!-- FIX 7: sampling frequency warning badge -->
+        <div id="freqWarnBadge" class="hidden mt-2"><span class="warn-badge">⚠ Crypto intraday vs stock daily — Hurst may not be comparable</span></div>
+
+        <div class="mt-5 mini rounded-3xl p-4">
+          <div class="text-xs text-zinc-400 mb-2">REALTIME (Finnhub Quotes)</div>
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div id="rtStatus" class="text-sm text-orange-300">Idle</div>
+              <div class="text-xs text-zinc-500">Last: <span id="rtLast">—</span></div>
+            </div>
+            <div class="flex gap-2 items-center">
+              <select id="rtMode" class="glass px-4 py-3 rounded-2xl text-sm focus:outline-none">
+                <option value="poll">Polling</option>
+                <option value="off">Off</option>
+              </select>
+            </div>
+          </div>
+          <div id="pollRow" class="mt-3">
+            <div class="text-xs text-zinc-500 mb-1">Polling Interval (ms)</div>
+            <input id="pollMs" type="number" class="w-full glass px-4 py-3 rounded-2xl text-sm" value="6000" min="1500" step="500" />
+            <div class="text-[10px] text-zinc-500 mt-2">If you see 429, increase interval to 8000–15000.</div>
+          </div>
+        </div>
+
+        <!-- M-FDE CONTROLS -->
+        <div class="mt-6 mini rounded-3xl p-4">
+          <div class="text-xs text-zinc-400 mb-2">M-FDE PROBABILITY CONE</div>
+          <div class="flex items-center justify-between gap-3">
+            <label class="text-xs text-zinc-300 flex items-center gap-2">
+              <input id="mfdeOn" type="checkbox" class="accent-cyan-400" checked />
+              Show cone
+            </label>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-zinc-500">Steps</span>
+              <input id="mfdeSteps" type="number" min="5" max="120" step="5" value="30"
+                     class="w-24 glass px-3 py-2 rounded-2xl text-sm" />
+            </div>
+          </div>
+          <div class="mt-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-zinc-500">Sims</span>
+              <input id="mfdeSims" type="number" min="50" max="800" step="50" value="300"
+                     class="w-24 glass px-3 py-2 rounded-2xl text-sm" />
+            </div>
+            <button onclick="loadChartAndAnalysis()" class="text-xs px-3 py-2 rounded-2xl btn">Refresh</button>
+          </div>
+
+          <!-- FIX 1: MA anchor toggle (was hidden/undocumented) -->
+          <div class="mt-3 border-t border-white/10 pt-3">
+            <div class="text-xs text-zinc-400 mb-2">SIMULATION CONTROLS</div>
+            <label class="text-xs text-zinc-300 flex items-center gap-2 mb-2">
+              <input id="maAnchorOn" type="checkbox" class="accent-cyan-400" checked />
+              MA20 anchor (pulls paths toward 20-day MA)
+            </label>
+            <!-- FIX 2: configurable return clamp -->
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs text-zinc-500">Max return/step (%)</span>
+              <input id="returnClamp" type="number" min="5" max="50" step="1" value="25"
+                     class="w-20 glass px-2 py-1 rounded-xl text-xs" />
+            </div>
+            <!-- FIX 6: noise distribution selector -->
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs text-zinc-500">Noise dist.</span>
+              <select id="noiseDist" class="glass px-2 py-1 rounded-xl text-xs focus:outline-none">
+                <option value="fam" selected>fαM (Lévy + fBm, true M-FDE)</option>
+                <option value="fbm">fBm (Hosking, correlated Gaussian)</option>
+                <option value="studentt">Student-t (ν=4, fat tails)</option>
+                <option value="gaussian">Gaussian (original)</option>
+              </select>
+            </div>
+            <!-- v6.3: Caputo fractional derivative toggle -->
+            <label class="text-xs text-zinc-300 flex items-center gap-2 mb-2">
+              <input id="caputoOn" type="checkbox" class="accent-cyan-400" checked />
+              Caputo D^H fractional derivative (full path memory)
+            </label>
+            <!-- v6.3: Multi-frequency forcing -->
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs text-zinc-500">Freq components (K)</span>
+              <input id="freqComponents" type="number" min="1" max="5" step="1" value="3"
+                     class="w-16 glass px-2 py-1 rounded-xl text-xs" />
+            </div>
+            <!-- v6.3: HMM regime blending -->
+            <label class="text-xs text-zinc-300 flex items-center gap-2">
+              <input id="hmmOn" type="checkbox" class="accent-cyan-400" checked />
+              HMM regime blending (probabilistic vs hard)
+            </label>
+            <!-- v6.4: adaptive lookback window -->
+            <div class="flex items-center gap-2 mt-2">
+              <span class="text-xs text-zinc-500">Lookback (bars)</span>
+              <select id="lookbackMode" class="glass px-2 py-1 rounded-xl text-xs focus:outline-none">
+                <option value="auto" selected>Auto (vol-adaptive)</option>
+                <option value="252">1Y (~252)</option>
+                <option value="504">2Y (~504)</option>
+                <option value="full">Full history</option>
+              </select>
+            </div>
+            <div class="text-[10px] text-zinc-500 mt-2">Auto uses shorter window for high-vol assets. fαM = fractional α-stable motion (fBm long memory + Lévy fat tails). MF-DFA gives scale-dependent D_f(ω) per frequency component.</div>
+          </div>
+
+          <!-- TRUE M-FDE PARAMETER READOUT -->
+          <div class="mt-3 border-t border-white/10 pt-3">
+            <div class="text-xs text-zinc-500 mb-2">M-FDE LIVE PARAMETERS</div>
+            <div class="grid grid-cols-2 gap-1 text-xs">
+              <div class="text-zinc-500">D_f (fractal dim)</div>
+              <div class="text-cyan-300 font-mono" id="mfde-Df">—</div>
+              <div class="text-zinc-500">D_f spectrum (MF-DFA)</div>
+              <div class="text-cyan-300 font-mono text-[10px]" id="mfde-Dfspectrum">—</div>
+              <div class="text-zinc-500">Δh (multifractal richness)</div>
+              <div class="font-mono" id="mfde-deltah">—</div>
+              <div class="text-zinc-500">H (smoothed)</div>
+              <div class="text-cyan-300 font-mono" id="mfde-H">—</div>
+              <div class="text-zinc-500">H+ (upside) / H− (downside)</div>
+              <div class="font-mono text-[10px]" id="mfde-Hasym">—</div>
+              <div class="text-zinc-500">Leverage ratio H−/H+</div>
+              <div class="font-mono" id="mfde-leverage">—</div>
+              <div class="text-zinc-500">Lévy α (tail index)</div>
+              <div class="font-mono" id="mfde-levy">—</div>
+              <div class="text-zinc-500">H (raw R/S or DFA)</div>
+              <div class="text-zinc-400 font-mono" id="mfde-rawH">—</div>
+              <div class="text-zinc-500">H confidence</div>
+              <div class="font-mono" id="mfde-hconf">—</div>
+              <div class="text-zinc-500">H method</div>
+              <div class="text-zinc-400 font-mono text-[10px]" id="mfde-hmethod">—</div>
+              <div class="text-zinc-500">ω components</div>
+              <div class="text-cyan-300 font-mono text-[10px]" id="mfde-omega">—</div>
+              <div class="text-zinc-500">α (momentum)</div>
+              <div class="text-cyan-300 font-mono" id="mfde-alpha">—</div>
+              <div class="text-zinc-500">β (forcing amp)</div>
+              <div class="text-cyan-300 font-mono" id="mfde-beta">—</div>
+              <div class="text-zinc-500">Regime (HMM)</div>
+              <div class="font-mono font-bold" id="mfde-regime">—</div>
+              <div class="text-zinc-500">Regime certainty</div>
+              <div class="font-mono" id="mfde-regcert">—</div>
+              <div class="text-zinc-500">Trending prob</div>
+              <div class="font-mono text-emerald-400" id="mfde-trendprob">—</div>
+              <div class="text-zinc-500">upProb (raw)</div>
+              <div class="font-mono text-zinc-400" id="mfde-upraw">—</div>
+              <div class="text-zinc-500">upProb (adjusted)</div>
+              <div class="font-mono text-cyan-300" id="mfde-upadj">—</div>
+              <div class="text-zinc-500">Lookback used</div>
+              <div class="font-mono text-zinc-400" id="mfde-lookback">—</div>
+              <div class="text-zinc-500">Asset vol class</div>
+              <div class="font-mono" id="mfde-volclass">—</div>
+              <div class="text-zinc-500">Calib score</div>
+              <div class="font-mono" id="mfde-calib">—</div>
+              <div class="text-zinc-500">RMSE (out-of-sample)</div>
+              <div class="font-mono" id="mfde-rmse">—</div>
+              <div class="text-zinc-500">Dir. accuracy</div>
+              <div class="font-mono" id="mfde-diracc">—</div>
+            </div>
+          </div>
+
+          <div class="text-[10px] text-zinc-500 mt-2">
+            D_f = 2 − H. H &gt; 0.65 = trending · 0.55–0.65 = mildly persistent · 0.45–0.55 = random walk · 0.42–0.45 = mildly anti-persistent · H &lt; 0.42 = mean-reverting.
+          </div>
+        </div>
+
+        <!-- MARKET NEWS -->
+        <div class="mt-6 mini rounded-3xl p-4">
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-zinc-400">MARKET NEWS</div>
+            <button onclick="loadMarketNews(true)" class="text-xs px-3 py-2 rounded-2xl btn">Refresh</button>
+          </div>
+          <div id="marketNewsStatus" class="text-[10px] text-zinc-500 mt-2">—</div>
+          <div id="marketNewsList" class="mt-3 max-h-44 overflow-auto scrollbarThin pr-1 text-sm text-zinc-200">
+            <div class="text-xs text-zinc-500">Enter your Finnhub key to load market news.</div>
+          </div>
+        </div>
+
+        <!-- ASSET NEWS -->
+        <div class="mt-6 mini rounded-3xl p-4">
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-zinc-400">ASSET NEWS: <span id="assetNewsLabel" class="text-zinc-300">NVDA</span></div>
+            <button onclick="loadAssetNews(currentSymbol, true)" class="text-xs px-3 py-2 rounded-2xl btn">Refresh</button>
+          </div>
+          <div id="assetNewsStatus" class="text-[10px] text-zinc-500 mt-2">—</div>
+          <div id="assetNewsList" class="mt-3 max-h-56 overflow-auto scrollbarThin pr-1 text-sm text-zinc-200">
+            <div class="text-xs text-zinc-500">Enter your Finnhub key to load asset news.</div>
+          </div>
+        </div>
+
+        <div class="mt-6 mini rounded-3xl p-4">
+          <div class="text-xs text-zinc-400 mb-2">DATA SOURCES</div>
+          <div class="text-xs text-zinc-300 whitespace-pre-wrap" id="sourceBox">—</div>
+        </div>
+        <div class="mt-6 mini rounded-3xl p-4">
+          <div class="text-xs text-zinc-400 mb-2">DEBUG</div>
+          <div id="debugBox" class="text-xs text-zinc-300 whitespace-pre-wrap">—</div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div class="flex-1 glass rounded-3xl p-6 min-w-[320px]">
+        <div class="flex gap-2 mb-4 justify-center flex-wrap" id="timeframeBtns"></div>
+        <div class="relative w-full" style="height: 420px;">
+          <canvas id="mainChart"></canvas>
+        </div>
+
+        <div class="mt-5 mini rounded-3xl p-5">
+          <div class="text-xs text-zinc-400">LUMINA ANALYSIS</div>
+          <div id="analysisTitle" class="text-lg font-semibold text-cyan-200">—</div>
+          <div class="mt-2 text-xs text-zinc-500">Updated: <span id="analysisUpdated" class="text-zinc-300">—</span></div>
+          <div id="analysisBody" class="mt-4 text-sm leading-relaxed text-zinc-200 whitespace-pre-wrap">Waiting for candle data…</div>
+        </div>
+
+        <!-- SIMULATOR -->
+        <div class="mt-5 mini rounded-3xl p-5">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div class="text-xs text-zinc-400">PAPER SIMULATOR</div>
+              <div class="text-sm text-zinc-300">
+                Cash: <span id="simCash" class="text-zinc-100 font-semibold">$0.00</span>
+                <span class="mx-2 text-zinc-600">|</span>
+                Equity: <span id="simEquity" class="text-zinc-100 font-semibold">$0.00</span>
+                <span class="mx-2 text-zinc-600">|</span>
+                P/L: <span id="simPL" class="text-zinc-100 font-semibold">$0.00</span>
+              </div>
+              <div class="text-[10px] text-zinc-500 mt-1">Fills are candle-based. This is not brokerage execution.</div>
+            </div>
+            <div class="flex gap-2 items-center flex-wrap">
+              <button onclick="simResetConfirm()" class="text-xs px-3 py-2 rounded-2xl btnDanger">Reset</button>
+              <button onclick="exportAllCSV()" class="text-xs px-3 py-2 rounded-2xl btn">Export CSV</button>
+            </div>
+          </div>
+          <div class="mt-4 flex gap-2 flex-wrap">
+            <button id="tabTicket" class="text-xs px-3 py-2 rounded-2xl tab tabActive" onclick="simShowTab('ticket')">Ticket</button>
+            <button id="tabPositions" class="text-xs px-3 py-2 rounded-2xl tab" onclick="simShowTab('positions')">Positions</button>
+            <button id="tabOrders" class="text-xs px-3 py-2 rounded-2xl tab" onclick="simShowTab('orders')">Working</button>
+            <button id="tabLog" class="text-xs px-3 py-2 rounded-2xl tab" onclick="simShowTab('log')">Log</button>
+            <button id="tabMetrics" class="text-xs px-3 py-2 rounded-2xl tab" onclick="simShowTab('metrics')">Metrics</button>
+            <button id="tabBacktest" class="text-xs px-3 py-2 rounded-2xl tab" onclick="simShowTab('backtest')">Backtest</button>
+          </div>
+
+          <div id="simTabTicket" class="mt-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="pill rounded-2xl p-3">
+                <div class="text-xs text-zinc-400 mb-2">Order</div>
+                <div class="flex gap-2 flex-wrap items-center">
+                  <select id="simSide" class="glass px-3 py-2 rounded-2xl text-sm"><option value="BUY">Buy</option><option value="SELL">Sell</option></select>
+                  <select id="simType" class="glass px-3 py-2 rounded-2xl text-sm" onchange="simTypeChanged()"><option value="MARKET">Market</option><option value="LIMIT">Limit</option></select>
+                  <input id="simQty" type="number" min="0.0001" step="1" value="1" class="glass px-3 py-2 rounded-2xl text-sm w-28" />
+                  <input id="simLimit" type="number" step="0.01" placeholder="limit price" class="glass px-3 py-2 rounded-2xl text-sm w-36 hidden" />
+                  <button onclick="simPlaceOrder()" class="text-xs px-4 py-2 rounded-2xl btnPrimary">Place</button>
+                </div>
+                <div class="text-[10px] text-zinc-500 mt-2">Market fills at next candle open. Limit fills if candle touches price.</div>
+              </div>
+              <div class="pill rounded-2xl p-3">
+                <div class="text-xs text-zinc-400 mb-2">M-FDE Assist</div>
+                <div class="text-sm text-zinc-200">
+                  <div>Up probability: <span id="mfdeUpProb" class="font-semibold">—</span></div>
+                  <div>Expected range: <span id="mfdeRange" class="font-semibold">—</span></div>
+                  <div>Regime: <span id="mfdeRegime" class="font-semibold">—</span></div>
+                  <!-- FIX 5: calibration validity indicator -->
+                  <div class="text-xs mt-1" id="calibValid"></div>
+                </div>
+                <div class="mt-3 flex gap-2 flex-wrap items-center">
+                  <button onclick="simAutoSize()" class="text-xs px-3 py-2 rounded-2xl btn">Auto size</button>
+                  <button onclick="simAutoTrade()" class="text-xs px-3 py-2 rounded-2xl btnPrimary">Auto trade</button>
+                  <button onclick="simMarkToMarket()" class="text-xs px-3 py-2 rounded-2xl btn">Update marks</button>
+                </div>
+                <div class="text-[10px] text-zinc-500 mt-2">Auto trade uses Hurst-adjusted position sizing. Trending regimes get larger size.</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="simTabPositions" class="mt-4 hidden"><div class="text-xs text-zinc-400 mb-2">Positions</div><div id="simPositions" class="max-h-56 overflow-auto scrollbarThin pr-1"></div></div>
+          <div id="simTabOrders" class="mt-4 hidden"><div class="text-xs text-zinc-400 mb-2">Working Orders</div><div id="simOrders" class="max-h-56 overflow-auto scrollbarThin pr-1"></div></div>
+          <div id="simTabLog" class="mt-4 hidden"><div class="text-xs text-zinc-400 mb-2">Trade Log</div><div id="simLog" class="max-h-56 overflow-auto scrollbarThin pr-1"></div></div>
+          <div id="simTabMetrics" class="mt-4 hidden"><div class="text-xs text-zinc-400 mb-2">Metrics</div><div id="simMetrics" class="text-sm text-zinc-200 whitespace-pre-wrap"></div></div>
+          <div id="simTabBacktest" class="mt-4 hidden">
+            <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+              <div>
+                <div class="text-xs text-zinc-400">SIGNAL BACKTEST</div>
+                <div class="text-[10px] text-zinc-500">Walks 252-bar windows through history. Tests auto-trade rule: up&gt;58% + MA20&gt;MA50 + H≥0.45 + non-volatile.</div>
+              </div>
+              <div class="flex gap-2 items-center flex-wrap">
+                <select id="btHorizon" class="glass px-2 py-1 rounded-xl text-xs focus:outline-none">
+                  <option value="5">5-day outcome</option>
+                  <option value="10" selected>10-day outcome</option>
+                  <option value="20">20-day outcome</option>
+                  <option value="60">60-day outcome</option>
+                </select>
+                <button onclick="runBacktest()" class="text-xs px-3 py-2 rounded-2xl btnPrimary">Run Backtest</button>
+              </div>
+            </div>
+            <div id="btStatus" class="text-xs text-zinc-500 mb-2">—</div>
+            <div id="btSummary" class="text-sm text-zinc-200 whitespace-pre-wrap mb-3"></div>
+            <div id="btResults" class="max-h-64 overflow-auto scrollbarThin pr-1 text-xs"></div>
+          </div>
+        </div>
+
+        <!-- WATCHLIST -->
+        <div class="mt-5 mini rounded-3xl p-5">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <div class="text-xs text-zinc-400">WATCHLIST</div>
+              <div class="text-[10px] text-zinc-500">Prices from candle close. M-FDE Up% uses true D_f / H per symbol.</div>
+            </div>
+            <div class="flex gap-2 items-center flex-wrap">
+              <input id="wlAddInput" type="text" placeholder="add symbol" class="glass px-3 py-2 rounded-2xl text-sm w-36" />
+              <button onclick="watchAdd()" class="text-xs px-3 py-2 rounded-2xl btnPrimary">Add</button>
+              <button onclick="watchRefreshDebounced(0,true)" class="text-xs px-3 py-2 rounded-2xl btn">Refresh</button>
+            </div>
+          </div>
+          <div id="watchListBox" class="mt-4 max-h-64 overflow-auto scrollbarThin pr-1"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="keyModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+    <div class="glass rounded-3xl p-8 max-w-md w-full">
+      <h3 class="text-2xl font-bold mb-4">Finnhub API Key (Quotes + News)</h3>
+      <p class="text-sm text-zinc-400 mb-4">Candles are not from Finnhub. Finnhub is used for quotes and news only.</p>
+      <input id="apiKeyInput" type="text" placeholder="paste key..." class="w-full glass px-6 py-5 rounded-3xl mb-6">
+      <div class="flex gap-4">
+        <button onclick="saveApiKey()" class="flex-1 py-4 bg-emerald-600 rounded-3xl font-bold">Save</button>
+        <button onclick="hideKeyModal()" class="flex-1 py-4 bg-white/10 rounded-3xl font-bold">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ─── Global state ─────────────────────────────────────
+let currentSymbol = "NVDA";
+let currentRange  = "1y";
+let chartInstance = null;
+let apiKey = "";
+let pollTimer = null;
+let lastCone = null;
+let lastCandles = null;
+const marketNewsCache = { ts: 0, items: [] };
+const assetNewsCache = new Map();
+// FIX 4: watchlist cone cache (per symbol, expires 5 min)
+const watchConeCache = new Map();
+
+// ─── Finnhub rate limiting ─────────────────────────────
+let FH_BACKOFF_MS = 0, FH_NEXT_OK_AT = 0;
+const FH_MIN_GAP_MS = 1200, FH_JITTER_MS = 250;
+function nowMs(){ return Date.now(); }
+function jitter(ms){ return ms + Math.floor(Math.random()*FH_JITTER_MS); }
+
+async function finnhubFetchJson(url) {
+  const now = nowMs();
+  if (now < FH_NEXT_OK_AT) return { _err:"backoff_active", _retryInMs:(FH_NEXT_OK_AT-now) };
+  FH_NEXT_OK_AT = Math.max(FH_NEXT_OK_AT, now + jitter(FH_MIN_GAP_MS));
+  try {
+    const res = await fetch(url,{cache:"no-store"});
+    if (res.status === 429) {
+      FH_BACKOFF_MS = FH_BACKOFF_MS ? Math.min(60000, Math.floor(FH_BACKOFF_MS*1.8)) : 4000;
+      FH_NEXT_OK_AT = nowMs() + FH_BACKOFF_MS;
+      return { _err:"http_429", _backoffMs:FH_BACKOFF_MS };
+    }
+    if (!res.ok) return { _err:"http_"+res.status };
+    FH_BACKOFF_MS = Math.max(0, Math.floor(FH_BACKOFF_MS*0.6));
+    return await res.json();
+  } catch(e) { return { _err:"network_error" }; }
+}
+
+// ─── Simulator state ───────────────────────────────────
+const SIM_KEY = "luminaSimStateV1", WATCH_KEY = "luminaWatchV1";
+let sim = { startingCash:200000, cash:200000, positions:{}, orders:[], trades:[], equityCurve:[] };
+let watch = { symbols:["NVDA","AAPL","TSLA","BTC","ETH","SPY","XRP"] };
+
+// ─── Storage ───────────────────────────────────────────
+function safeGet(k,fb){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):fb; }catch(e){return fb;} }
+function safeSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+// ─── UI helpers ────────────────────────────────────────
+function setDebug(o){ document.getElementById("debugBox").textContent=typeof o==="string"?o:JSON.stringify(o,null,2); }
+function setRTStatus(t,ok){ const el=document.getElementById("rtStatus"); el.textContent=t; el.className=ok?"text-sm text-emerald-300":"text-sm text-orange-300"; }
+function setRTLast(){ document.getElementById("rtLast").textContent=new Date().toLocaleTimeString(); }
+function setSources(l){ document.getElementById("sourceBox").textContent=l.join("\n"); }
+function setAnalysis(title,body){ document.getElementById("analysisTitle").textContent=title||"—"; document.getElementById("analysisBody").textContent=body||"—"; document.getElementById("analysisUpdated").textContent=new Date().toLocaleTimeString(); }
+function setMarketNewsStatus(t){ document.getElementById("marketNewsStatus").textContent=t; }
+function setAssetNewsStatus(t){ document.getElementById("assetNewsStatus").textContent=t; }
+function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;"); }
+function fmtMoney(x){ return Number(x||0).toLocaleString(undefined,{style:"currency",currency:"USD"}); }
+function norm(s){ return (s||"").trim().toUpperCase(); }
+function fmtDateYYYYMMDD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+
+// ─── Crypto mapping ────────────────────────────────────
+const COINGECKO_IDS = { BTC:"bitcoin",ETH:"ethereum",XRP:"ripple",SOL:"solana",ADA:"cardano",DOGE:"dogecoin",BNB:"binancecoin",LINK:"chainlink",AVAX:"avalanche-2",MATIC:"matic-network",DOT:"polkadot",LTC:"litecoin" };
+function isCryptoSymbol(s){ return !!COINGECKO_IDS[norm(s)]||["BTCUSD","ETHUSD","XRPUSD"].includes(norm(s)); }
+function cryptoBase(s){ const n=norm(s); return n.endsWith("USD")?n.slice(0,-3):n; }
+async function coingeckoPriceUSD(symbol) {
+  const base=cryptoBase(symbol), id=COINGECKO_IDS[base];
+  if(!id) return {_err:"unsupported_crypto_symbol"};
+  const rawUrl=`https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(id)}&vs_currencies=usd&include_24hr_change=true`;
+  const f=await fetchTextSmart(rawUrl);
+  if(!f.ok) return {_err:f.err||"fetch_failed"};
+  const data=extractFirstJsonObject(f.text||"");
+  if(!data||!data[id]||typeof data[id].usd!=="number") return {_err:"bad_json"};
+  return { price:data[id].usd, change24:typeof data[id].usd_24h_change==="number"?data[id].usd_24h_change:null };
+}
+
+// ─── Fetch helpers ─────────────────────────────────────
+async function fetchTextSmart(rawUrl) {
+  try { const r=await fetch(rawUrl,{cache:"no-store"}); if(r.ok) return {ok:true,text:await r.text(),via:"direct",rawUrl}; } catch(e){}
+  const wrapped=`https://r.jina.ai/${rawUrl}`;
+  try { const r2=await fetch(wrapped,{cache:"no-store"}); if(!r2.ok) return {ok:false,err:"http_"+r2.status,via:"jina",rawUrl,wrapped}; return {ok:true,text:await r2.text(),via:"jina",rawUrl,wrapped}; } catch(e){ return {ok:false,err:"network_error",via:"jina",rawUrl,wrapped}; }
+}
+function extractFirstJsonObject(text) {
+  const i=text.indexOf("{"); if(i===-1) return null;
+  try { return JSON.parse(text.slice(i)); } catch(e){ return null; }
+}
+
+// ─── Finnhub ───────────────────────────────────────────
+async function finnhubQuote(symbol) {
+  if(!apiKey) return {_err:"missing_key"};
+  return finnhubFetchJson(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(norm(symbol))}&token=${encodeURIComponent(apiKey)}`);
+}
+async function finnhubCompanyNews(symbol) {
+  if(!apiKey) return {_err:"missing_key"};
+  const to=new Date(), from=new Date(Date.now()-1000*60*60*24*14);
+  return finnhubFetchJson(`https://finnhub.io/api/v1/company-news?symbol=${encodeURIComponent(norm(symbol))}&from=${fmtDateYYYYMMDD(from)}&to=${fmtDateYYYYMMDD(to)}&token=${encodeURIComponent(apiKey)}`);
+}
+async function finnhubCategoryNews(category) {
+  if(!apiKey) return {_err:"missing_key"};
+  return finnhubFetchJson(`https://finnhub.io/api/v1/news?category=${encodeURIComponent(category)}&token=${encodeURIComponent(apiKey)}`);
+}
+function renderNewsInto(elId,items,label) {
+  const box=document.getElementById(elId);
+  if(!items||!items.length){ box.innerHTML=`<div class="text-xs text-zinc-500">No news found for ${escapeHtml(label)}.</div>`; return; }
+  const top=items.slice().sort((a,b)=>(b.datetime||0)-(a.datetime||0)).slice(0,12);
+  box.innerHTML=top.map(n=>{
+    const ts=n.datetime?new Date(n.datetime*1000):null, when=ts?ts.toLocaleString():"—";
+    const headline=escapeHtml(n.headline||"Headline"), src=escapeHtml(n.source||""), url=n.url?String(n.url):"", sum=escapeHtml((n.summary||"").slice(0,170));
+    const link=url?`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="text-cyan-300 hover:underline">${headline}</a>`:`<span class="text-zinc-200">${headline}</span>`;
+    return `<div class="mb-3 pb-3 border-b border-white/10"><div class="text-[10px] text-zinc-500">${when}${src?" • "+src:""}</div><div class="text-sm mt-1">${link}</div>${sum?`<div class="text-xs text-zinc-400 mt-1">${sum}${(n.summary&&n.summary.length>170)?"…":""}</div>`:""}</div>`;
+  }).join("");
+}
+async function loadMarketNews(force=false) {
+  const now=Date.now();
+  if(!force&&marketNewsCache.ts&&(now-marketNewsCache.ts)<120000){ setMarketNewsStatus(`Cached • ${new Date(marketNewsCache.ts).toLocaleTimeString()}`); renderNewsInto("marketNewsList",marketNewsCache.items,"Market"); return; }
+  if(!apiKey){ setMarketNewsStatus("Enter Finnhub key to load market news."); renderNewsInto("marketNewsList",[],"Market"); return; }
+  setMarketNewsStatus("Loading market news…"); document.getElementById("marketNewsList").innerHTML=`<div class="text-xs text-zinc-500">Loading…</div>`;
+  const gen=await finnhubCategoryNews("general"), cry=await finnhubCategoryNews("crypto");
+  let items=[];
+  if(gen&&!gen._err&&Array.isArray(gen)) items=items.concat(gen);
+  if(cry&&!cry._err&&Array.isArray(cry)) items=items.concat(cry);
+  const seen=new Set(); items=items.filter(x=>{ const u=x&&x.url?String(x.url):""; if(!u)return true; if(seen.has(u))return false; seen.add(u); return true; });
+  marketNewsCache.ts=now; marketNewsCache.items=items;
+  setMarketNewsStatus(`Updated • ${new Date(now).toLocaleTimeString()}`); renderNewsInto("marketNewsList",items,"Market");
+}
+async function loadAssetNews(symbol,force=false) {
+  const s=norm(symbol); document.getElementById("assetNewsLabel").textContent=s;
+  const now=Date.now(), cached=assetNewsCache.get(s);
+  if(!force&&cached&&(now-cached.ts)<120000){ setAssetNewsStatus(`Cached • ${new Date(cached.ts).toLocaleTimeString()}`); renderNewsInto("assetNewsList",cached.items,s); return; }
+  if(!apiKey){ setAssetNewsStatus("Enter Finnhub key to load asset news."); renderNewsInto("assetNewsList",[],s); return; }
+  setAssetNewsStatus("Loading asset news…"); document.getElementById("assetNewsList").innerHTML=`<div class="text-xs text-zinc-500">Loading…</div>`;
+  let items=[];
+  if(isCryptoSymbol(s)){ const d=await finnhubCategoryNews("crypto"); if(d&&!d._err&&Array.isArray(d)){ const key=cryptoBase(s); items=d.filter(x=>(x.headline||"").toUpperCase().includes(key)||(x.summary||"").toUpperCase().includes(key)); } }
+  else { const d=await finnhubCompanyNews(s); if(d&&!d._err&&Array.isArray(d)) items=d; }
+  assetNewsCache.set(s,{ts:now,items}); setAssetNewsStatus(`Updated • ${new Date(now).toLocaleTimeString()}`); renderNewsInto("assetNewsList",items,s);
+}
+
+// ─── Candle data ────────────────────────────────────────
+function daysForRange(r){ if(r==="1d")return 5; if(r==="5d")return 10; if(r==="1m")return 35; if(r==="6m")return 200; if(r==="1y")return 400; if(r==="5y")return 2200; return 400; }
+
+// Fetch with hard timeout — prevents hanging on slow 6M requests
+async function fetchWithTimeout(url, ms=8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), ms);
+  try {
+    const r = await fetch(url, {cache:"no-store", signal:controller.signal});
+    clearTimeout(timer);
+    if(r.ok) return {ok:true, text:await r.text(), via:"direct"};
+    return {ok:false, err:"http_"+r.status};
+  } catch(e) {
+    clearTimeout(timer);
+    return {ok:false, err:e.name==="AbortError"?"timeout":"network_error"};
+  }
+}
+
+async function fetchTextSmart(rawUrl) {
+  // Try direct first with timeout
+  const direct = await fetchWithTimeout(rawUrl, 6000);
+  if(direct.ok) return {...direct, rawUrl};
+  // Jina proxy fallback
+  const wrapped=`https://r.jina.ai/${rawUrl}`;
+  try {
+    const r2 = await fetchWithTimeout(wrapped, 8000);
+    if(!r2.ok) return {ok:false,err:r2.err,via:"jina",rawUrl,wrapped};
+    return {ok:true,text:r2.text,via:"jina",rawUrl,wrapped};
+  } catch(e){ return {ok:false,err:"network_error",via:"jina",rawUrl,wrapped}; }
+}
+
+async function stooqCandlesDaily(symbol,range) {
+  const s=norm(symbol); if(!s) return {_err:"bad_symbol"};
+  const candidates=s.includes(".")?[s.toLowerCase()]:[(s+".US").toLowerCase(),s.toLowerCase()];
+  for(const cSym of candidates) {
+    const rawUrl=`https://stooq.com/q/d/l/?s=${encodeURIComponent(cSym)}&i=d`;
+    const fetched=await fetchTextSmart(rawUrl); if(!fetched.ok) continue;
+    const lines=(fetched.text||"").trim().split("\n").map(x=>x.trim()).filter(Boolean);
+    if(lines.length<3) continue;
+    const t=[],o=[],h=[],l=[],c=[],v=[];
+    for(const r of lines.slice(1).map(line=>line.split(","))){ const dt=r[0],close=Number(r[4]); if(!dt||!Number.isFinite(close)) continue; const open=Number(r[1]),high=Number(r[2]),low=Number(r[3]),vol2=Number(r[5]); t.push(new Date(dt+"T00:00:00Z").getTime()); o.push(Number.isFinite(open)?open:close); h.push(Number.isFinite(high)?high:close); l.push(Number.isFinite(low)?low:close); c.push(close); v.push(Number.isFinite(vol2)?vol2:0); }
+    if(c.length<2) continue;
+    const need=daysForRange(range),start=Math.max(0,c.length-need);
+    return {t:t.slice(start),o:o.slice(start),h:h.slice(start),l:l.slice(start),c:c.slice(start),v:v.slice(start),source:"Stooq (daily)",rawUrl,via:fetched.via};
+  }
+  return {_err:"stooq_not_found"};
+}
+
+function yahooRangeInterval(r){ if(r==="1d")return{r:"5d",i:"1d"}; if(r==="5d")return{r:"1mo",i:"1d"}; if(r==="1m")return{r:"3mo",i:"1d"}; if(r==="6m")return{r:"1y",i:"1d"}; if(r==="1y")return{r:"2y",i:"1d"}; if(r==="5y")return{r:"10y",i:"1d"}; return{r:"1y",i:"1d"}; }
+
+function parseYahooResponse(fetched, range) {
+  const data=extractFirstJsonObject(fetched.text||""), res=data?.chart?.result?.[0], ts=res?.timestamp, q=res?.indicators?.quote?.[0];
+  if(!Array.isArray(ts)||!q) return {_err:"yahoo_bad_data"};
+  const t=[],o=[],h=[],l=[],c=[],v=[];
+  for(let i=0;i<ts.length;i++){ const close=Number(q.close[i]); if(!Number.isFinite(close)) continue; t.push(Number(ts[i])*1000); const op=Number(q.open[i]),hi=Number(q.high[i]),lo=Number(q.low[i]); o.push(Number.isFinite(op)?op:close); h.push(Number.isFinite(hi)?hi:close); l.push(Number.isFinite(lo)?lo:close); c.push(close); v.push(Number.isFinite(Number(q.volume[i]))?Number(q.volume[i]):0); }
+  if(c.length<2) return {_err:"yahoo_no_points"};
+  const need=daysForRange(range),start=Math.max(0,c.length-need);
+  return {t:t.slice(start),o:o.slice(start),h:h.slice(start),l:l.slice(start),c:c.slice(start),v:v.slice(start),source:"Yahoo (daily)",via:fetched.via};
+}
+
+async function yahooCandlesDaily(symbol,range) {
+  const s=norm(symbol); if(!s) return {_err:"bad_symbol"};
+  const ri=yahooRangeInterval(range);
+  // Try both Yahoo endpoints in parallel — query1 and query2 — take whichever works
+  const url1=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?range=${encodeURIComponent(ri.r)}&interval=${encodeURIComponent(ri.i)}`;
+  const url2=`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(s)}?range=${encodeURIComponent(ri.r)}&interval=${encodeURIComponent(ri.i)}`;
+
+  // Race both — first success wins
+  const results = await Promise.allSettled([
+    fetchTextSmart(url1),
+    fetchTextSmart(url2)
+  ]);
+
+  for(const result of results){
+    if(result.status==="fulfilled"&&result.value?.ok){
+      const parsed = parseYahooResponse(result.value, range);
+      if(!parsed._err) return parsed;
+    }
+  }
+  return {_err:"yahoo_all_failed"};
+}
+
+async function coingeckoCandles(symbol,range) {
+  const base=cryptoBase(symbol),id=COINGECKO_IDS[base]; if(!id) return {_err:"unsupported_crypto_symbol"};
+  const rawUrl=`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${encodeURIComponent(daysForRange(range))}`;
+  const fetched=await fetchTextSmart(rawUrl); if(!fetched.ok) return {_err:fetched.err||"fetch_failed",rawUrl,via:fetched.via};
+  const data=extractFirstJsonObject(fetched.text||"");
+  if(!data||!Array.isArray(data.prices)||data.prices.length<2) return {_err:"bad_json_or_data",rawUrl,via:fetched.via};
+  const t=data.prices.map(p=>Number(p[0])),c=data.prices.map(p=>Number(p[1]));
+  return {t,o:c.slice(),h:c.slice(),l:c.slice(),c,v:[],source:"CoinGecko (daily)",rawUrl,via:fetched.via};
+}
+
+async function loadCandles(symbol,range) {
+  const s=norm(symbol);
+  if(isCryptoSymbol(s)) return coingeckoCandles(s,range);
+  // For stocks: try Stooq and Yahoo in PARALLEL — take whichever succeeds first
+  // This is the key fix for slow 6M loading: don't wait for Stooq to fail before trying Yahoo
+  const [stooqResult, yahooResult] = await Promise.allSettled([
+    stooqCandlesDaily(s,range),
+    yahooCandlesDaily(s,range)
+  ]);
+  // Prefer Stooq if successful
+  if(stooqResult.status==="fulfilled"&&stooqResult.value&&!stooqResult.value._err)
+    return stooqResult.value;
+  // Fall back to Yahoo
+  if(yahooResult.status==="fulfilled"&&yahooResult.value&&!yahooResult.value._err)
+    return yahooResult.value;
+  // Both failed
+  return {_err:"no_provider"};
+}
+
+// ─── Indicators ────────────────────────────────────────
+function clamp(x,lo,hi){ return Math.max(lo,Math.min(hi,x)); }
+function sma(arr,p){ const out=new Array(arr.length).fill(null); let sum=0; for(let i=0;i<arr.length;i++){ const v=Number(arr[i]); if(!Number.isFinite(v)){out[i]=null;continue;} sum+=v; if(i>=p)sum-=arr[i-p]; if(i>=p-1)out[i]=sum/p; } return out; }
+function rsi(prices,period=14){ const out=new Array(prices.length).fill(null); if(prices.length<period+1)return out; let gains=0,losses=0; for(let i=1;i<=period;i++){const diff=prices[i]-prices[i-1];if(diff>=0)gains+=diff;else losses-=diff;} let avgGain=gains/period,avgLoss=losses/period; out[period]=avgLoss===0?100:100-(100/(1+(avgGain/avgLoss))); for(let i=period+1;i<prices.length;i++){const diff=prices[i]-prices[i-1],gain=diff>0?diff:0,loss=diff<0?-diff:0; avgGain=(avgGain*(period-1)+gain)/period; avgLoss=(avgLoss*(period-1)+loss)/period; out[i]=avgLoss===0?100:100-(100/(1+(avgGain/avgLoss)));} return out; }
+function stddev(arr){ if(!arr.length)return 0; const m=arr.reduce((a,b)=>a+b,0)/arr.length; return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length); }
+function quantile(sortedArr,q){ const n=sortedArr.length; if(!n)return null; const pos=(n-1)*q,base=Math.floor(pos),rest=pos-base; if((base+1)<n)return sortedArr[base]+rest*(sortedArr[base+1]-sortedArr[base]); return sortedArr[base]; }
+function maxDrawdown(prices){ let peak=prices[0],mdd=0; for(let i=1;i<prices.length;i++){peak=Math.max(peak,prices[i]);mdd=Math.min(mdd,(prices[i]-peak)/peak);} return mdd; }
+function atr14(o,h,l,c){ const n=c.length; if(n<15)return null; const tr=[]; for(let i=1;i<n;i++){const high=h[i],low=l[i],prev=c[i-1]; tr.push(Math.max(high-low,Math.abs(high-prev),Math.abs(low-prev)));} const p=14; let sum=0; for(let i=0;i<p;i++)sum+=tr[i]; let atr=sum/p; for(let i=p;i<tr.length;i++)atr=(atr*(p-1)+tr[i])/p; return atr; }
+
+// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
+// v7.0 — TRUE M-FDE MATH ENGINE
+// D^H P(t) = α(H±)·Caputo[P] + β·Σ_k P^D_f(ω_k)·cos(ω_k·t) + σ·dL_α^H(t)
+// New: MF-DFA multifractal spectrum · fαM noise · Asymmetric H± · Scale-dependent D_f
+// ══════════════════════════════════════════════════════════════════
+
+// ─── Gaussian base RNG ─────────────────────────────────────────
+function randGaussian(){
+  let u=0,v=0;
+  while(u===0)u=Math.random();while(v===0)v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function randStudentT(nu=4){
+  const z=randGaussian();let chiSq=0;
+  for(let i=0;i<nu;i++){const n2=randGaussian();chiSq+=n2*n2;}
+  return z/Math.sqrt(chiSq/nu);
+}
+
+// ─── UPGRADE: Chambers-Mallows-Stuck α-stable RNG ──────────────
+// α=2→Gaussian, α=1.7→typical equity, α=1.5→crypto tails
+// Symmetric (β=0) version for market returns
+function randAlphaStable(alpha){
+  alpha=Math.max(0.5,Math.min(1.99,alpha));
+  const U=Math.random()*Math.PI-Math.PI/2;
+  const W=-Math.log(Math.random());
+  const sinAU=Math.sin(alpha*U);
+  const cosU=Math.cos(U);
+  const cosRest=Math.cos((1-alpha)*U);
+  const X=(sinAU/cosU)*Math.pow(Math.max(cosRest/W,(1e-10)),(1-alpha)/alpha);
+  return X/(1+(2-alpha)*0.5);
+}
+
+// ─── UPGRADE 1: fαM — Fractional α-stable Motion ───────────────
+// Combines fBm long-memory correlation structure
+// with α-stable fat-tailed draws.
+// This is the noise term that makes M-FDE mathematically complete:
+// dL_α^H(t) = Cholesky(fBm_cov) · α-stable draws
+// = correlated + fat-tailed increments in one
+
+const fbmCache=new Map();
+function getFBMCholesky(N,H){
+  const key=`${N}_${H.toFixed(3)}`;
+  if(fbmCache.has(key))return fbmCache.get(key);
+  const C=[];
+  for(let i=0;i<N;i++){
+    C[i]=new Float64Array(N);
+    for(let j=0;j<N;j++){
+      const ii=i+1,jj=j+1,d=Math.abs(ii-jj);
+      C[i][j]=0.5*(Math.pow(ii,2*H)+Math.pow(jj,2*H)-Math.pow(d,2*H));
+    }
+  }
+  const L=[];
+  for(let i=0;i<N;i++)L[i]=new Float64Array(N);
+  for(let i=0;i<N;i++){
+    for(let j=0;j<=i;j++){
+      let s=C[i][j];
+      for(let k=0;k<j;k++)s-=L[i][k]*L[j][k];
+      L[i][j]=(i===j)?Math.sqrt(Math.max(s,1e-14)):s/(L[j][j]||1e-14);
+    }
+  }
+  fbmCache.set(key,L);
+  if(fbmCache.size>24)fbmCache.delete(fbmCache.keys().next().value);
+  return L;
+}
+
+function drawFBMPath(N,H,L){
+  const z=new Float64Array(N);
+  for(let i=0;i<N;i++)z[i]=randGaussian();
+  const inc=new Float64Array(N);
+  for(let i=0;i<N;i++)for(let j=0;j<=i;j++)inc[i]+=L[i][j]*z[j];
+  return inc;
+}
+
+// Draw fαM path: fBm correlation structure + α-stable marginals
+function drawFAMPath(N,H,alphaLevy,L){
+  // Draw α-stable noise (iid)
+  const stable=new Float64Array(N);
+  for(let i=0;i<N;i++)stable[i]=randAlphaStable(alphaLevy);
+  // Apply fBm correlation via Cholesky
+  const inc=new Float64Array(N);
+  for(let i=0;i<N;i++)for(let j=0;j<=i;j++)inc[i]+=L[i][j]*stable[j];
+  return inc;
+}
+
+function randn_selected(){
+  const d=document.getElementById("noiseDist")?.value||"fam";
+  if(d==="studentt")return randStudentT(4);
+  if(d==="gaussian")return randGaussian();
+  return randGaussian(); // fBm and fαM use drawFBMPath/drawFAMPath
+}
+
+// ─── UPGRADE 2: Caputo fractional derivative ───────────────────
+function gammaFunc(z){
+  if(z<0.5)return Math.PI/(Math.sin(Math.PI*z)*gammaFunc(1-z));
+  z-=1;
+  const c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,
+    771.32342877765313,-176.61502916214059,12.507343278686905,
+    -0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  let x=c[0];for(let i=1;i<9;i++)x+=c[i]/(z+i);
+  const t=z+7.5;
+  return Math.sqrt(2*Math.PI)*Math.pow(t,z+0.5)*Math.exp(-t)*x;
+}
+
+function caputoDerivative(pathReturns,H){
+  const alpha=1-H,n=pathReturns.length;
+  if(n===0)return 0;
+  const g=gammaFunc(1-alpha)||1;
+  let sum=0;const mem=Math.min(n,40);
+  for(let k=0;k<mem;k++){
+    const w=(Math.pow(k+1,1-alpha)-Math.pow(k,1-alpha))/g;
+    sum+=w*(pathReturns[n-1-k]||0);
+  }
+  return sum;
+}
+
+// ─── UPGRADE 3: NEW — Multifractal DFA (MF-DFA) ────────────────
+// Returns generalized Hurst exponents h(q) for q in [-4,-2,0,2,4]
+// h(2) ≈ classical DFA Hurst
+// Δh = h(-4)-h(4) = multifractal richness (0=monofractal, >0.15=rich)
+// D_f(q) = 2 - h(q) = scale-dependent fractal dimension
+function mfdfa(returns){
+  const n=returns.length;
+  if(n<40)return null;
+  const qVals=[-4,-2,0,2,4];
+  const scales=[];
+  let s=8;while(s<=n/4){scales.push(Math.floor(s));s=Math.floor(s*1.5);if(scales[scales.length-1]===scales[scales.length-2])s++;}
+  if(scales.length<4)return null;
+
+  const mean=returns.reduce((a,b)=>a+b,0)/n;
+  const Y=new Float64Array(n);
+  let cum=0;for(let i=0;i<n;i++){cum+=returns[i]-mean;Y[i]=cum;}
+
+  const Fq={};for(const q of qVals)Fq[q]=[];
+  const validScales=[];
+
+  for(const sc of scales){
+    const nSegs=Math.floor(n/sc);
+    if(nSegs<4)continue;
+    validScales.push(sc);
+    const rms2=[];
+    for(let seg=0;seg<nSegs;seg++){
+      const y0=Y.slice(seg*sc,(seg+1)*sc);
+      let sx=0,sy=0,sxy=0,sx2=0;
+      for(let i=0;i<sc;i++){sx+=i;sy+=y0[i];sxy+=i*y0[i];sx2+=i*i;}
+      const denom=sc*sx2-sx*sx||1;
+      const m=(sc*sxy-sx*sy)/denom,b=(sy-m*sx)/sc;
+      let rss=0;for(let i=0;i<sc;i++){const r=y0[i]-(m*i+b);rss+=r*r;}
+      rms2.push(Math.max(rss/sc,1e-30));
+    }
+    const arr=new Float64Array(rms2);
+    for(const q of qVals){
+      if(q===0){
+        let ls=0;for(const v of arr)ls+=Math.log(v);
+        Fq[0].push(Math.exp(0.5*ls/arr.length));
+      } else {
+        let sum=0;for(const v of arr)sum+=Math.pow(v,q/2);
+        Fq[q].push(Math.pow(sum/arr.length,1/q));
+      }
+    }
+  }
+  if(validScales.length<4)return null;
+
+  const logS=validScales.map(v=>Math.log(v));
+  const h={};
+  for(const q of qVals){
+    const logF=Fq[q].map(v=>Math.log(Math.max(v,1e-20)));
+    const n2=logS.length;
+    let mS=0,mF=0;for(let i=0;i<n2;i++){mS+=logS[i];mF+=logF[i];}mS/=n2;mF/=n2;
+    let num=0,den=0;
+    for(let i=0;i<n2;i++){num+=(logS[i]-mS)*(logF[i]-mF);den+=(logS[i]-mS)**2;}
+    h[q]=den>0?Math.max(0.05,Math.min(1.95,num/den)):0.5;
+  }
+
+  const deltaH=h[-4]-h[4];
+  const Df={};for(const q of qVals)Df[q]=2-h[q];
+
+  return{
+    h, Df, deltaH,
+    h2:h[2], DfMedium:Df[2],
+    DfSmall:Df[-4],  // fractal dim of small moves
+    DfLarge:Df[4],   // fractal dim of large trend moves
+    richness:Math.abs(deltaH),
+    isMultifractal:Math.abs(deltaH)>0.08
+  };
+}
+
+// ─── UPGRADE 4: NEW — Hill estimator for Lévy tail index ────────
+// Estimates the tail index α of the return distribution.
+// α ∈ (1,2): fat-tailed but finite variance (typical: equities ~1.7, crypto ~1.4)
+// Lower α = fatter tails = bigger crash potential
+function estimateLevyAlpha(returns,kPct=0.12){
+  const n=returns.length;
+  const k=Math.max(10,Math.floor(n*kPct));
+  const absRets=returns.map(r=>Math.abs(r)).sort((a,b)=>a-b);
+  if(absRets.length<k+5)return{alphaLevy:1.7,nuEquiv:4.0};
+  const tail=absRets.slice(-(k+1));
+  const xK=tail[0];
+  if(xK<=0)return{alphaLevy:1.7,nuEquiv:4.0};
+  let sumLog=0,cnt=0;
+  for(let i=1;i<tail.length;i++){
+    const lr=Math.log(tail[i]/xK);
+    if(lr>0){sumLog+=lr;cnt++;}
+  }
+  if(cnt<3)return{alphaLevy:1.7,nuEquiv:4.0};
+  const alpha=Math.max(0.5,Math.min(4.0,cnt/sumLog));
+  const nuEquiv=Math.max(1.0,Math.min(30.0,alpha));
+  const tailLabel=alpha<1.2?'extreme (crash-prone)':alpha<1.5?'very fat':alpha<1.8?'fat':alpha<2.0?'moderate':'near-Gaussian';
+  return{alphaLevy:alpha,nuEquiv,tailLabel};
+}
+
+// ─── UPGRADE 5: NEW — Asymmetric / Signed Hurst ─────────────────
+// Separate Hurst for upside (H+) and downside (H-) return persistence.
+// Leverage ratio L = H- / H+
+// L > 1: down moves persist more than up moves (typical equities — leverage effect)
+// L < 1: up moves persist more (bull market / momentum signal)
+function signedHurst(returns){
+  const upRets=returns.map(r=>r>0?r:0);
+  const dnRets=returns.map(r=>r<0?-r:0);
+
+  function rsHurst(series){
+    const pos=series.filter(r=>r>1e-12);
+    if(pos.length<20)return 0.5;
+    const n=pos.length;
+    const lags=[Math.floor(n*0.08),Math.floor(n*0.15),Math.floor(n*0.25),Math.floor(n*0.35)].filter(l=>l>=4);
+    const rsVals=[];
+    for(const lag of lags){
+      const nChunks=Math.floor(n/lag);
+      if(nChunks<2)continue;
+      let rsSum=0,cnt=0;
+      for(let c=0;c<nChunks;c++){
+        const chunk=pos.slice(c*lag,(c+1)*lag);
+        const mu=chunk.reduce((a,b)=>a+b,0)/chunk.length;
+        const dev=chunk.map(x=>x-mu);
+        let cum=0;const cumdev=dev.map(d=>(cum+=d,cum));
+        const R=Math.max(...cumdev)-Math.min(...cumdev);
+        const S=Math.sqrt(dev.reduce((a,b)=>a+b*b,0)/chunk.length)||1e-10;
+        if(R>0&&S>0){rsSum+=R/S;cnt++;}
+      }
+      if(cnt>0)rsVals.push([lag,rsSum/cnt]);
+    }
+    if(rsVals.length<3)return 0.5;
+    const ls=rsVals.map(v=>Math.log(v[0])),lr=rsVals.map(v=>Math.log(v[1]));
+    const N=ls.length,mS=ls.reduce((a,b)=>a+b,0)/N,mF=lr.reduce((a,b)=>a+b,0)/N;
+    let num=0,den=0;
+    for(let i=0;i<N;i++){num+=(ls[i]-mS)*(lr[i]-mF);den+=(ls[i]-mS)**2;}
+    return den>0?Math.max(0.1,Math.min(0.99,num/den)):0.5;
+  }
+
+  const Hplus=rsHurst(upRets);
+  const Hminus=rsHurst(dnRets);
+  const leverage=Hplus>0.01?Hminus/Hplus:1.0;
+  const asymmetry=Hminus-Hplus;
+  let signal=asymmetry>0.05?'bearish asymmetry':asymmetry<-0.05?'bullish asymmetry':'symmetric';
+  return{Hplus,Hminus,leverage,asymmetry,signal};
+}
+
+// ─── UPGRADE 6: Multi-frequency spectral decomposition ──────────
+function spectralDecompose(returns,K=3){
+  const n=returns.length;
+  if(n<20)return[{omega:0.2,amplitude:1.0}];
+  const maxLag=Math.min(Math.floor(n/3),120);
+  const mean=returns.reduce((a,b)=>a+b,0)/n;
+  const variance=returns.reduce((a,b)=>a+(b-mean)**2,0)/n||1e-10;
+  const spectrum=[];
+  for(let lag=2;lag<=maxLag;lag++){
+    let ac=0;for(let i=0;i<n-lag;i++)ac+=(returns[i]-mean)*(returns[i+lag]-mean);
+    spectrum.push({lag,ac:ac/((n-lag)*variance),omega:(2*Math.PI)/lag});
+  }
+  const peaks=[];
+  for(let i=1;i<spectrum.length-1;i++){
+    if(spectrum[i].ac>0&&spectrum[i].ac>spectrum[i-1].ac&&spectrum[i].ac>spectrum[i+1].ac)peaks.push(spectrum[i]);
+  }
+  peaks.sort((a,b)=>b.ac-a.ac);
+  const topK=peaks.slice(0,K);
+  if(!topK.length){let wS=0,wT=0;for(const s of spectrum){if(s.ac>0){wS+=s.lag*s.ac;wT+=s.ac;}}return[{omega:(2*Math.PI)/Math.max(wT>0?wS/wT:maxLag/2,2),amplitude:1.0}];}
+  const totalAC=topK.reduce((a,p)=>a+p.ac,0)||1;
+  return topK.map(p=>({omega:p.omega,amplitude:p.ac/totalAC,lag:p.lag}));
+}
+
+// ─── UPGRADE 7: NEW — Scale-dependent forcing ───────────────────
+// Each frequency component now uses its OWN fractal dimension D_f(ω_k)
+// Short cycles (high ω) → D_f of small moves (MF-DFA h(-4))
+// Long cycles (low ω) → D_f of large trend moves (MF-DFA h(4))
+// This is the key mathematical advance: multifractal scale coupling
+function multiFractalForcing(beta,Pnorm,mfSpectrum,components,t){
+  if(!mfSpectrum||!components.length)return beta*Math.pow(Math.max(Pnorm,0.001),1.5)*Math.cos(0.2*t);
+  let forcing=0;
+  const omegas=components.map(c=>c.omega);
+  const omegaMin=Math.min(...omegas),omegaMax=Math.max(...omegas)||omegaMin+0.01;
+
+  for(const c of components){
+    // Interpolate D_f between small-scale and large-scale based on this component's ω
+    const t_norm=(c.omega-omegaMin)/(omegaMax-omegaMin||1);
+    // High ω (fast cycle) → use D_f of small moves
+    // Low ω (slow cycle) → use D_f of large moves
+    const Df_c=t_norm*mfSpectrum.DfSmall+(1-t_norm)*mfSpectrum.DfLarge;
+    const Df_clamped=Math.max(1.0,Math.min(1.99,Df_c));
+    forcing+=c.amplitude*Math.pow(Math.max(Pnorm,0.001),Df_clamped)*Math.cos(c.omega*t);
+  }
+  return beta*forcing;
+}
+
+// ─── HMM regime blending (from v6.4) ────────────────────────────
+const HMM_STATES=[
+  {name:'TRENDING',    muH:0.68,sigH:0.07},
+  {name:'MEAN-REVERTING',muH:0.36,sigH:0.06},
+  {name:'VOLATILE',   muH:0.50,sigH:0.10},
+  {name:'CALM',        muH:0.50,sigH:0.05},
+];
+const HMM_T=[[0.82,0.06,0.07,0.05],[0.06,0.82,0.07,0.05],[0.07,0.07,0.76,0.10],[0.05,0.05,0.10,0.80]];
+
+function hmmPosterior(hHistory){
+  const K=4;let alpha=new Float64Array(K).fill(0.25);
+  for(const H of hHistory){
+    const nA=new Float64Array(K);
+    for(let j=0;j<K;j++){
+      for(let i=0;i<K;i++)nA[j]+=alpha[i]*HMM_T[i][j];
+      const st=HMM_STATES[j];
+      nA[j]*=Math.exp(-0.5*((H-st.muH)/st.sigH)**2)/(st.sigH*2.506628);
+    }
+    const norm=nA.reduce((a,b)=>a+b,0)||1;
+    for(let j=0;j<K;j++)alpha[j]=nA[j]/norm;
+  }
+  return HMM_STATES.map((s,i)=>({...s,prob:alpha[i]}));
+}
+
+function blendRegimeParams(posterior,H){
+  let bAlpha=0,bBeta=0;
+  const paramFn={'TRENDING':(H)=>({a:0.15+0.30*(H-0.5)*4,b:0.012}),'MEAN-REVERTING':(H)=>({a:-(0.10+0.20*(0.5-H)*4),b:0.006}),'VOLATILE':(H)=>({a:0,b:0.018}),'CALM':(H)=>({a:0,b:0.004})};
+  for(const s of posterior){const f=paramFn[s.name];if(!f)continue;const r=f(H);bAlpha+=s.prob*r.a;bBeta+=s.prob*r.b;}
+  const dom=posterior.reduce((a,b)=>b.prob>a.prob?b:a);
+  return{alpha:bAlpha,beta:bBeta,name:dom.name,trendingProb:posterior[0].prob,posterior};
+}
+
+function detectRegime(prices,returns,H){
+  const n=returns.length;if(n<20)return{name:'UNKNOWN',score:0.5,alpha:0,beta:0.02,Df:1.5,H:0.5,vol:0.01,ac1:0,trendingProb:0};
+  if(H===undefined)H=hurstExponent(returns.slice(-Math.min(n,120)));
+  const vol=Math.sqrt(returns.slice(-60).reduce((a,b)=>a+b*b,0)/Math.min(n,60))||0.01;
+  const r=returns.slice(-Math.min(n,60)),rm=r.reduce((a,b)=>a+b,0)/r.length;
+  let ac1n=0,ac1d=0;for(let i=0;i<r.length-1;i++){ac1n+=(r[i]-rm)*(r[i+1]-rm);ac1d+=(r[i]-rm)**2;}
+  const ac1=ac1d>0?ac1n/ac1d:0,volPct=vol*100;
+  let name,score,alpha,beta;
+  if(H>0.65&&ac1>0.05){name='TRENDING';score=Math.min(1,(H-0.5)*4);alpha=0.15+0.25*(H-0.5)*4;beta=0.008+0.012*score;}
+  else if(H<0.42&&ac1<-0.05){name='MEAN-REVERTING';score=Math.min(1,(0.5-H)*4);alpha=-(0.10+0.20*score);beta=0.005+0.008*score;}
+  else if(volPct>2.5){name='VOLATILE';score=Math.min(1,(volPct-2.5)/3.0);alpha=ac1*0.3;beta=0.015+0.02*score;}
+  else{name='CALM';score=1-volPct/2.5;alpha=ac1*0.2;beta=0.003+0.005*(1-score);}
+  return{name,score:Math.max(0,Math.min(1,score)),alpha,beta,vol,ac1,trendingProb:name==='TRENDING'?score:0};
+}
+
+function adjustUpProb(raw,calibScore,regimeName,trendingProb){
+  const cal=calibScore??0;
+  const rc=regimeName==='TRENDING'?1.0:regimeName==='LEANING-TREND'?0.8:regimeName==='MEAN-REVERTING'?0.85:regimeName==='VOLATILE'?0.55:0.30;
+  const hw=trendingProb!=null?0.5+0.5*trendingProb:1.0;
+  return 0.5+(raw-0.5)*Math.min(1,cal*rc*hw);
+}
+
+function estimateDomFreqRobust(returns){
+  const n=returns.length;if(n<20)return 0.1;
+  const maxLag=Math.min(Math.floor(n/3),80);
+  const mean=returns.reduce((a,b)=>a+b,0)/n;
+  const variance=returns.reduce((a,b)=>a+(b-mean)**2,0)/n||1e-10;
+  const ac=[];for(let lag=2;lag<=maxLag;lag++){let s=0;for(let i=0;i<n-lag;i++)s+=(returns[i]-mean)*(returns[i+lag]-mean);ac.push({lag,val:s/((n-lag)*variance)});}
+  const peaks=[];for(let i=1;i<ac.length-1;i++){if(ac[i].val>0&&ac[i].val>=ac[i-1].val&&ac[i].val>=ac[i+1].val)peaks.push(ac[i]);}
+  peaks.sort((a,b)=>b.val-a.val);const top=peaks.slice(0,5);
+  if(!top.length){let wS=0,wT=0;for(const{lag,val}of ac){if(val>0){wS+=lag*val;wT+=val;}}return(2*Math.PI)/Math.max(wT>0?wS/wT:maxLag/2,2);}
+  let wS=0,wT=0;for(const{lag,val}of top){wS+=lag*val;wT+=val;}
+  return(2*Math.PI)/Math.max(wT>0?wS/wT:top[0].lag,2);
+}
+
+const hurstSmoother=new Map();
+
+function dfaHurst(prices){
+  if(prices.length<50)return 0.5;
+  const mean=prices.reduce((a,b)=>a+b,0)/prices.length;
+  const cumDev=new Array(prices.length);let sum=0;
+  for(let i=0;i<prices.length;i++){sum+=prices[i]-mean;cumDev[i]=sum;}
+  const minBox=8,maxBox=Math.floor(prices.length/4);
+  const scales=[];for(let s=minBox;s<=maxBox;s=Math.floor(s*1.5)){if(!scales.includes(Math.floor(s)))scales.push(Math.floor(s));}
+  if(!scales.includes(maxBox))scales.push(maxBox);
+  const fluctuations=[];
+  for(const boxSize of scales){
+    let totalRms=0;const numBoxes=Math.floor(prices.length/boxSize);
+    if(numBoxes<2){fluctuations.push(null);continue;}
+    for(let b=0;b<numBoxes;b++){
+      const seg=cumDev.slice(b*boxSize,(b+1)*boxSize),n=seg.length;
+      let sx=0,sy=0,sxy=0,sx2=0;
+      for(let i=0;i<n;i++){sx+=i;sy+=seg[i];sxy+=i*seg[i];sx2+=i*i;}
+      const m=(n*sxy-sx*sy)/(n*sx2-sx*sx||1),c=(sy-m*sx)/n;
+      let rss=0;for(let i=0;i<n;i++){const r=seg[i]-(m*i+c);rss+=r*r;}
+      totalRms+=Math.sqrt(rss/n);
+    }
+    fluctuations.push(totalRms/numBoxes);
+  }
+  const pairs=scales.map((s,i)=>({s,f:fluctuations[i]})).filter(x=>x.f&&x.f>0&&isFinite(x.f));
+  if(pairs.length<3)return 0.5;
+  const logS=pairs.map(x=>Math.log(x.s)),logF=pairs.map(x=>Math.log(x.f));
+  const n2=logS.length,mS=logS.reduce((a,b)=>a+b,0)/n2,mF=logF.reduce((a,b)=>a+b,0)/n2;
+  let num=0,den=0;for(let i=0;i<n2;i++){num+=(logS[i]-mS)*(logF[i]-mF);den+=(logS[i]-mS)**2;}
+  return Math.max(0.1,Math.min(0.99,den>0?num/den:0.5));
+}
+
+function hurstExponent(series){
+  const n=series.length;if(n<20)return 0.5;
+  const rsValues=[];
+  for(let lag=4;lag<=Math.min(n/2,64);lag=Math.ceil(lag*1.5)){
+    const chunks=Math.floor(n/lag);if(chunks<2)continue;
+    let rsSum=0,count=0;
+    for(let c=0;c<chunks;c++){
+      const chunk=series.slice(c*lag,(c+1)*lag);
+      const mean=chunk.reduce((a,b)=>a+b,0)/chunk.length;
+      const dev=chunk.map(x=>x-mean);
+      let cum=0;const cumdev=dev.map(d=>(cum+=d,cum));
+      const R=Math.max(...cumdev)-Math.min(...cumdev);
+      const S=Math.sqrt(dev.reduce((a,b)=>a+b*b,0)/chunk.length)||1e-10;
+      if(R>0&&S>0){rsSum+=R/S;count++;}
+    }
+    if(count>0)rsValues.push({lag,rs:rsSum/count});
+  }
+  if(rsValues.length<3)return 0.5;
+  const ll=rsValues.map(x=>Math.log(x.lag)),lr=rsValues.map(x=>Math.log(x.rs));
+  const N=ll.length,ml=ll.reduce((a,b)=>a+b,0)/N,mr2=lr.reduce((a,b)=>a+b,0)/N;
+  let num=0,den=0;for(let i=0;i<N;i++){num+=(ll[i]-ml)*(lr[i]-mr2);den+=(ll[i]-ml)**2;}
+  return Math.max(0.1,Math.min(0.99,den>0?num/den:0.5));
+}
+
+function getSmoothedHurst(symbol,prices){
+  const n=prices.length;
+  const confidence=Math.min(1,(n-30)/120);
+  const useDFA=n<120;
+  const rets=[];for(let i=1;i<prices.length;i++)rets.push(Math.log(prices[i]/prices[i-1]));
+  const rawH=useDFA?dfaHurst(prices):hurstExponent(rets.slice(-Math.min(140,rets.length)));
+  const method=useDFA?"DFA":"R/S";
+  const adjustedRaw=0.5+(rawH-0.5)*confidence;
+  if(!hurstSmoother.has(symbol))hurstSmoother.set(symbol,{smoothedH:adjustedRaw,alpha:0.7});
+  const state=hurstSmoother.get(symbol);
+  state.smoothedH=state.alpha*adjustedRaw+(1-state.alpha)*state.smoothedH;
+  return{smoothedH:state.smoothedH,rawH,confidence,method};
+}
+
+function resolveRegimeLabel(hmmName,trendingProb,H){
+  if(Math.abs(H-0.5)<0.06){
+    if(trendingProb>0.6)return 'UNCERTAIN-BULL';
+    if(trendingProb<0.3)return 'UNCERTAIN-BEAR';
+    return 'CALM';
+  }
+  if(H>0.55&&H<0.65&&hmmName==='TRENDING')return 'LEANING-TREND';
+  if(H>0.42&&H<0.45&&hmmName==='MEAN-REVERTING')return 'LEANING-REVERT';
+  return hmmName;
+}
+
+function regimeCss(name){
+  if(name==='TRENDING'||name==='LEANING-TREND')return 'regime-trending';
+  if(name==='MEAN-REVERTING'||name==='LEANING-REVERT')return 'regime-reverting';
+  if(name==='VOLATILE')return 'regime-volatile';
+  if(name==='UNCERTAIN-BULL')return 'text-cyan-300';
+  if(name==='UNCERTAIN-BEAR')return 'text-orange-300';
+  return 'regime-calm';
+}
+
+function hBand(H){
+  if(H>0.65)return{label:'trending (persistent)',css:'regime-trending'};
+  if(H>0.55)return{label:'mildly persistent',css:'text-cyan-300'};
+  if(H>=0.45)return{label:'random walk (H≈0.5)',css:'text-zinc-400'};
+  if(H>=0.42)return{label:'mildly anti-persistent',css:'text-orange-300'};
+  return{label:'mean-reverting (anti-persistent)',css:'regime-reverting'};
+}
+
+// ══════════════════════════════════════════════════════════════════
+// v7.2 CALIBRATION — Walk-forward, vol-normalized RMSE, direction-primary
+// ──────────────────────────────────────────────────────────────────
+// The v6.4 system had one fundamental flaw:
+//   RMSE = sqrt(mean((median - actual)^2)) / P0
+// For AAPL which went from $150 → $250 in the test window,
+// (median=$180, actual=$250) → err = 70/150 = 47% per step → RMSE 1523%
+// even though the model was directionally correct 58% of the time.
+//
+// The fix has three parts:
+// 1. THREE walk-forward folds instead of a single 80/20 split
+//    Each fold trains on expanding data, tests on the next n/7 bars.
+//    Score is averaged across folds — reduces sensitivity to one bad period.
+//
+// 2. RMSE normalized by REALIZED test-period spread, not P0
+//    expected_spread = testVol × sqrt(steps) × P0
+//    This is "how far should prices have moved given realized uncertainty?"
+//    A model that stays within that spread is correct even if the stock 2x'd.
+//
+// 3. Weighting: 70% directional accuracy, 30% magnitude
+//    Direction is what matters for trading signals.
+//    Magnitude matters for position sizing, hence secondary weight.
+//    Structural breaks get 15% penalty — not zeroed out.
+// ══════════════════════════════════════════════════════════════════
+function runOneFold(trainPrices,testPrices,alpha,beta,Df,components,H,mfSpectrum,levyAlpha,signedH){
+  if(trainPrices.length<10||testPrices.length<5)return null;
+  const P0=trainPrices[trainPrices.length-1],Pprev=trainPrices[trainPrices.length-2]||P0;
+  const trainRets=[];for(let i=1;i<trainPrices.length;i++)trainRets.push(Math.log(trainPrices[i]/Math.max(trainPrices[i-1],1e-10)));
+  const mu=trainRets.slice(-60).reduce((a,b)=>a+b,0)/Math.min(60,trainRets.length);
+  const trainVol=Math.sqrt(trainRets.slice(-60).reduce((a,b)=>a+b*b,0)/Math.min(60,trainRets.length))||0.01;
+  const testRets=[];for(let i=1;i<testPrices.length;i++)testRets.push(Math.log(testPrices[i]/Math.max(testPrices[i-1],1e-10)));
+  const testVol=testRets.length>3?Math.sqrt(testRets.reduce((a,b)=>a+b*b,0)/testRets.length):trainVol;
+  const testMove=Math.abs(Math.log(testPrices[testPrices.length-1]/Math.max(testPrices[0],1e-10)));
+  const structBreak=(testVol>trainVol*3||testVol<trainVol/3)||(testMove>testVol*Math.sqrt(testPrices.length)*3);
+
+  const steps=testPrices.length,sims=40;
+  const clampPct=(Number(document.getElementById("returnClamp")?.value||25))/100;
+  const useCaputo=document.getElementById("caputoOn")?.checked??true;
+  const useMAanchor=document.getElementById("maAnchorOn")?.checked??true;
+  const noiseDist=document.getElementById("noiseDist")?.value||"fam";
+  const aLevy=levyAlpha||1.7;
+  const ma20val=sma(trainPrices,20).filter(x=>x!==null).pop()??P0;
+
+  let fbmL=null;
+  if((noiseDist==="fbm"||noiseDist==="fam")&&steps>0){try{fbmL=getFBMCholesky(steps,H);}catch(e){}}
+
+  const medians=[];
+  for(let t=0;t<steps;t++){
+    const sf=[];
+    for(let s=0;s<sims;s++){
+      let P=P0,Pp=Pprev;const pathRets=[];
+      let noiseInc=null;
+      if(fbmL&&t>0){try{const Lt=getFBMCholesky(t+1,H);noiseInc=noiseDist==="fam"?drawFAMPath(t+1,H,aLevy,Lt):drawFBMPath(t+1,H,Lt);}catch(e){}}
+      for(let i=0;i<=t;i++){
+        const r_prev=Math.log(P/Math.max(Pp,1e-10));
+        const isDown=P<Pp;
+        const Heff=signedH?(isDown?signedH.Hminus:signedH.Hplus):H;
+        const sig=trainVol*(1+0.35*Math.pow(Math.abs(r_prev),Math.max(0.3,(2-Heff)/2)));
+        const forcing=mfSpectrum?multiFractalForcing(beta,P/P0,mfSpectrum,components,i):beta*Math.pow(Math.max(P/P0,0.001),Df)*Math.cos(0.3*i);
+        const momentum=useCaputo&&pathRets.length>0?alpha*caputoDerivative(pathRets,Heff):alpha*(P-Pp)/Math.max(P0,1e-10);
+        const mr=useMAanchor?0.015*Math.log(ma20val/Math.max(P,1e-10)):0;
+        let noise=noiseInc?noiseInc[i]*(1/Math.sqrt(t+1||1)):noiseDist==="studentt"?randStudentT(4):randGaussian();
+        const dLogP=clamp(mu+momentum+forcing+mr+sig*noise,-clampPct,clampPct);
+        pathRets.push(dLogP);Pp=P;P=P*Math.exp(dLogP);
+      }
+      sf.push(P);
+    }
+    sf.sort((a,b)=>a-b);medians.push(sf[Math.floor(sims/2)]);
+  }
+
+  // Directional accuracy — primary signal
+  let dirC=0;
+  for(let i=1;i<steps;i++)if((medians[i]>medians[i-1])===(testPrices[i]>testPrices[i-1]))dirC++;
+  const dirAcc=steps>1?dirC/(steps-1):0.5;
+
+  // RMSE normalized by ACTUAL test-period price range
+  // This asks: "was the model's error large relative to how much price actually moved?"
+  // vol×sqrt(steps)×P0 underestimates the denominator for trending assets
+  // because drift grows linearly with t while vol grows as sqrt(t)
+  // Using the actual range makes the metric honest for all market conditions.
+  // rmseNorm < 0.5 → model tracked price well
+  // rmseNorm 0.5–1.5 → reasonable given the move
+  // rmseNorm > 2.0 → model diverged significantly from actual path
+  const testPriceMin=Math.min(...testPrices),testPriceMax=Math.max(...testPrices);
+  const testRange=Math.max(testPriceMax-testPriceMin, P0*0.005);
+  let sse=0;
+  for(let i=0;i<steps;i++){const err=(medians[i]-testPrices[i]);sse+=err*err;}
+  const rmseAbs=Math.sqrt(sse/steps);
+  const rmseNorm=rmseAbs/testRange;  // dimensionless, no ×100
+
+  // Score: 70% direction, 30% magnitude. Structural break → 15% penalty.
+  const dirScore=dirAcc;
+  const magScore=Math.max(0,1-Math.min(1,rmseNorm));
+  const rawScore=0.70*dirScore+0.30*magScore;
+  const score=rawScore*(structBreak?0.85:1.0);
+
+  return{score,dirAcc,rmseNorm,rmseAbs,trainVol,testVol,structBreak};
+}
+
+function calibrateMFDE(prices,alpha,beta,Df,components,H,mfSpectrum,levyAlpha,signedH){
+  const n=prices.length;
+
+  // Build 3 walk-forward folds: each tests on ~n/7 bars
+  const foldSize=Math.max(10,Math.floor(n/7));
+  const foldResults=[];
+
+  for(let fold=0;fold<3;fold++){
+    const testEnd=n-fold*foldSize;
+    const testStart=testEnd-foldSize;
+    const trainEnd=testStart;
+    if(trainEnd<30||testStart<0||testEnd>n||testEnd-testStart<5)continue;
+    const trainP=prices.slice(0,trainEnd);
+    const testP=prices.slice(testStart,testEnd);
+    const result=runOneFold(trainP,testP,alpha,beta,Df,components,H,mfSpectrum,levyAlpha,signedH);
+    if(result)foldResults.push(result);
+  }
+
+  if(!foldResults.length)return{score:null,rmse:null,dirAcc:null,structBreak:false,trainVol:"?",volFactor:"1"};
+
+  // Average across folds
+  const avgScore=foldResults.reduce((a,f)=>a+f.score,0)/foldResults.length;
+  const avgDirAcc=foldResults.reduce((a,f)=>a+f.dirAcc,0)/foldResults.length;
+  const avgRmseNorm=foldResults.reduce((a,f)=>a+f.rmseNorm,0)/foldResults.length;
+  const anyBreak=foldResults.some(f=>f.structBreak);
+  const trainVol=foldResults[foldResults.length-1].trainVol||0.01;
+  // Report rmse as 3-decimal dimensionless ratio — <1.0 means model within price range
+  const rmseDisplay=avgRmseNorm.toFixed(3);
+
+  return{
+    score:Math.max(0,Math.min(1,avgScore)),
+    rmse:rmseDisplay,
+    dirAcc:(avgDirAcc*100).toFixed(1),
+    structBreak:anyBreak,
+    trainVol:(trainVol*100).toFixed(2),
+    volFactor:Math.min(4,Math.max(1,trainVol/0.01)).toFixed(1),
+    folds:foldResults.length,
+    rmseLabel:"norm"  // flag so UI can show "normalized" not raw %
+  };
+}
+
+// ─── Adaptive lookback (v6.4) ──────────────────────────────────
+function getAdaptiveLookback(prices,mode){
+  const n=prices.length;
+  if(mode==='full')return n;if(mode==='252')return Math.min(252,n);if(mode==='504')return Math.min(504,n);
+  const rets=[];const window=Math.min(60,n-1);
+  for(let i=n-window;i<n;i++)rets.push(Math.log(prices[i]/prices[i-1]));
+  const vol=Math.sqrt(rets.reduce((a,b)=>a+b*b,0)/rets.length)||0.01;
+  if(vol<0.01)return Math.min(504,n);if(vol<0.02)return Math.min(252,n);if(vol<0.03)return Math.min(180,n);return Math.min(126,n);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// v7.0 TRUE M-FDE CONE
+// D^H P(t) = α(H±)·Caputo[P] + β·Σ_k P^D_f(ω_k)·cos(ω_k·t) + σ·dL_α^H(t)
+// ══════════════════════════════════════════════════════════════════
+function mfdeCone(prices,candles,steps,sims){
+  const n=prices.length;if(n<60)return null;
+
+  // Adaptive lookback
+  const lookbackMode=document.getElementById("lookbackMode")?.value||"auto";
+  const lookbackBars=getAdaptiveLookback(prices,lookbackMode);
+  const pricesWindow=prices.slice(-lookbackBars);
+  const nw=pricesWindow.length;
+
+  const rets=[];for(let i=1;i<nw;i++)rets.push(Math.log(pricesWindow[i]/pricesWindow[i-1]));
+  const win=Math.min(140,rets.length),recent=rets.slice(-win);
+
+  const vol60=Math.sqrt(recent.slice(-60).reduce((a,b)=>a+b*b,0)/Math.min(60,recent.length))||1e-6;
+  const volClass=vol60<0.008?'LOW':vol60<0.015?'MEDIUM':vol60<0.025?'HIGH':'VERY HIGH';
+
+  // Hurst
+  const hInfo=getSmoothedHurst(currentSymbol,pricesWindow);
+  const H=hInfo.smoothedH,Df=2-H;
+
+  // NEW v7.0: Multifractal spectrum (MF-DFA)
+  const mfSpectrum=mfdfa(recent);
+
+  // NEW v7.0: Lévy tail index estimation
+  const levyInfo=estimateLevyAlpha(recent);
+  const alphaLevy=levyInfo.alphaLevy;
+
+  // NEW v7.0: Asymmetric / Signed Hurst
+  const signedH=signedHurst(recent);
+
+  // Multi-freq spectral decomposition
+  const K=Math.max(1,Math.min(5,Number(document.getElementById("freqComponents")?.value||3)));
+  const freqComponents=spectralDecompose(recent,K);
+
+  // Regime
+  const useHMM=document.getElementById("hmmOn")?.checked??true;
+  let regimeAlpha,regimeBeta,regimeName,regimeRaw,trendingProb,regimeAc1,regimePosterior;
+
+  if(useHMM){
+    const hHistory=[];
+    const winStep=Math.max(1,Math.floor(recent.length/8));
+    for(let i=winStep;i<=recent.length;i+=winStep){const sl=recent.slice(Math.max(0,i-40),i);if(sl.length>10)hHistory.push(hurstExponent(sl));}
+    hHistory.push(H);
+    const post=hmmPosterior(hHistory.length>1?hHistory:[H,H]);
+    const bl=blendRegimeParams(post,H);
+    regimeAlpha=bl.alpha;regimeBeta=bl.beta;regimeRaw=bl.name;trendingProb=bl.trendingProb;regimePosterior=bl.posterior;
+    regimeName=resolveRegimeLabel(bl.name,bl.trendingProb,H);
+    const r=recent.slice(-60),rm=r.reduce((a,b)=>a+b,0)/r.length;
+    let ac1n=0,ac1d=0;for(let i=0;i<r.length-1;i++){ac1n+=(r[i]-rm)*(r[i+1]-rm);ac1d+=(r[i]-rm)**2;}
+    regimeAc1=ac1d>0?ac1n/ac1d:0;
+  } else {
+    const reg=detectRegime(pricesWindow,recent,H);
+    regimeAlpha=reg.alpha;regimeBeta=reg.beta;regimeRaw=reg.name;trendingProb=reg.trendingProb||0;regimeAc1=reg.ac1;
+    regimeName=resolveRegimeLabel(reg.name,reg.trendingProb||0,H);
+  }
+
+  const regimeCertainty=regimePosterior?Math.max(...regimePosterior.map(s=>s.prob)):1.0;
+
+  // Calibrate with v7.0 engine
+  const calib=calibrateMFDE(pricesWindow,regimeAlpha,regimeBeta,Df,freqComponents,H,mfSpectrum,alphaLevy,signedH);
+
+  const mu=recent.reduce((a,b)=>a+b,0)/recent.length;
+  const ma20=sma(pricesWindow,20).filter(x=>x!==null).pop()??pricesWindow[nw-1];
+  const ma50=sma(pricesWindow,50).filter(x=>x!==null).pop()??pricesWindow[nw-1];
+  const P0=pricesWindow[nw-1],Pprev=pricesWindow[nw-2];
+
+  const useMAanchor=document.getElementById("maAnchorOn")?.checked??true;
+  const useCaputo=document.getElementById("caputoOn")?.checked??true;
+  const clampPct=(Number(document.getElementById("returnClamp")?.value||25))/100;
+  const noiseDist=document.getElementById("noiseDist")?.value||"fam";
+
+  // Pre-compute fBm/fαM Cholesky
+  let fbmL=null;
+  if((noiseDist==="fbm"||noiseDist==="fam")&&steps>0){try{fbmL=getFBMCholesky(steps,H);}catch(e){fbmL=null;}}
+
+  const byStep=Array.from({length:steps},()=>[]);
+
+  for(let s=0;s<sims;s++){
+    // Draw full noise path upfront
+    let noiseInc=null;
+    if(fbmL){
+      noiseInc=noiseDist==="fam"
+        ?drawFAMPath(steps,H,alphaLevy,fbmL)
+        :drawFBMPath(steps,H,fbmL);
+    }
+
+    let P=P0,Pp=Pprev;
+    const pathRets=[];
+    let currentComponents=[...freqComponents];
+
+    for(let t=1;t<=steps;t++){
+      if(t%8===0&&pathRets.length>=20){
+        const combined=[...recent.slice(-60),...pathRets];
+        currentComponents=spectralDecompose(combined.slice(-80),K);
+      }
+
+      const r_prev=Math.log(P/Math.max(Pp,1e-10));
+
+      // NEW v7.0: Asymmetric momentum — use H+ or H- depending on direction
+      const isDown=P<Pp;
+      const Heff=isDown?signedH.Hminus:signedH.Hplus;
+      const sigT=vol60*(1+0.35*Math.pow(Math.abs(r_prev),Math.max(0.3,(2-Heff)/2)));
+
+      // NEW v7.0: Scale-dependent fractal forcing using MF-DFA
+      const Pnorm=P/P0;
+      const forcing=mfSpectrum
+        ?multiFractalForcing(regimeBeta,Pnorm,mfSpectrum,currentComponents,t)
+        :regimeBeta*Math.pow(Math.max(Pnorm,0.001),Df)*currentComponents.reduce((a,c)=>a+c.amplitude*Math.cos(c.omega*t),0);
+
+      // Caputo derivative with effective H for direction
+      const momentum=useCaputo&&pathRets.length>0
+        ?regimeAlpha*caputoDerivative(pathRets,Heff)
+        :regimeAlpha*(P-Pp)/Math.max(P0,1e-10);
+
+      const mr=useMAanchor?0.015*Math.log(ma20/Math.max(P,1e-10)):0;
+
+      // NEW v7.0: fαM noise (correlated + fat-tailed)
+      let noise;
+      if(noiseInc)noise=noiseInc[t-1]*(1/Math.sqrt(steps));
+      else if(noiseDist==="studentt")noise=randStudentT(4);
+      else noise=randGaussian();
+
+      const dLogP=clamp(mu+momentum+forcing+mr+sigT*noise,-clampPct,clampPct);
+      pathRets.push(dLogP);Pp=P;P=P*Math.exp(dLogP);
+      byStep[t-1].push(P);
+    }
+  }
+
+  const q05=[],q10=[],q25=[],q50=[],q75=[],q90=[],q95=[];
+  for(let t=0;t<steps;t++){
+    const arr=byStep[t].slice().sort((a,b)=>a-b);
+    q05.push(quantile(arr,0.05));q10.push(quantile(arr,0.10));q25.push(quantile(arr,0.25));
+    q50.push(quantile(arr,0.50));q75.push(quantile(arr,0.75));q90.push(quantile(arr,0.90));q95.push(quantile(arr,0.95));
+  }
+
+  const finals=byStep[steps-1];
+  const rawUpProb=clamp(finals.filter(x=>x>P0).length/finals.length,0.05,0.95);
+  const adjustedUpProb=adjustUpProb(rawUpProb,calib.score,regimeName,trendingProb);
+
+  const omegaSummary=freqComponents.slice(0,3).map(c=>`${c.omega.toFixed(3)}(${(c.amplitude*100).toFixed(0)}%)`).join(' ');
+  const DfSpectrum=mfSpectrum?`${mfSpectrum.DfSmall.toFixed(3)} | ${mfSpectrum.DfMedium.toFixed(3)} | ${mfSpectrum.DfLarge.toFixed(3)}`:"n/a";
+  const hb=hBand(H);
+
+  return{
+    params:{
+      Df, H, rawH:hInfo.rawH, hConfidence:hInfo.confidence, hMethod:hInfo.method,
+      hBandLabel:hb.label, hBandCss:hb.css,
+      omega:freqComponents[0]?.omega||0.2, omegaHz:(freqComponents[0]?.omega||0.2)/(2*Math.PI),
+      omegaSummary, freqComponents,
+      // NEW v7.0 params
+      mfSpectrum, DfSpectrum,
+      deltaH:mfSpectrum?.deltaH, mfRichness:mfSpectrum?.richness,
+      isMultifractal:mfSpectrum?.isMultifractal||false,
+      levyAlpha:alphaLevy, levyLabel:levyInfo.tailLabel,
+      Hplus:signedH.Hplus, Hminus:signedH.Hminus,
+      leverageRatio:signedH.leverage, asymmetrySignal:signedH.signal,
+      // standard params
+      alpha:regimeAlpha, beta:regimeBeta, mu, vol:vol60, volClass,
+      regime:regimeName, regimeRaw, trendingProb, regimeCertainty, ac1:regimeAc1||0,
+      ma20, ma50,
+      calibScore:calib.score, calibRMSE:calib.rmse, calibDirAcc:calib.dirAcc,
+      calibValid:calib.score!==null, structBreak:calib.structBreak||false,
+      volFactor:calib.volFactor, trainVol:calib.trainVol, folds:calib.folds||3,
+      rawUpProb, adjustedUpProb, noiseMethod:noiseDist, useCaputo, useHMM:useHMM??true,
+      lookbackBars, lookbackMode
+    },
+    q05,q10,q25,q50,q75,q90,q95,
+    upProb:adjustedUpProb, rawUpProb,
+    expectedLow:q10[q10.length-1], expectedMid:q50[q50.length-1], expectedHigh:q90[q90.length-1]
+  };
+}
+
+
+// ─── Chart ─────────────────────────────────────────────
+function drawChart(labels,prices,coneObj,lastMs) {
+  const ctx=document.getElementById("mainChart").getContext("2d");
+  if(chartInstance) chartInstance.destroy();
+  const ma20=sma(prices,20), ma50=sma(prices,50);
+  const datasets=[
+    {label:currentSymbol,data:prices,tension:0.25,pointRadius:0,borderWidth:2.5,borderColor:"rgba(34,211,238,0.95)"},
+    {label:"MA20",data:ma20,tension:0.25,pointRadius:0,borderWidth:1.5,borderColor:"rgba(251,191,36,0.85)"},
+    {label:"MA50",data:ma50,tension:0.25,pointRadius:0,borderWidth:1.5,borderColor:"rgba(167,139,250,0.85)"},
+  ];
+
+  // ── Smart y-axis bounds: based on price history + modest buffer ──
+  // Never let the cone extremes dictate the price axis scale.
+  // This is what caused NVDA to show as a flat line at the bottom.
+  const validPrices = prices.filter(p=>Number.isFinite(p)&&p>0);
+  const priceMin = validPrices.length ? Math.min(...validPrices) : 0;
+  const priceMax = validPrices.length ? Math.max(...validPrices) : 1;
+  const priceRange = priceMax - priceMin || priceMax;
+
+  // Show cone median and 10-90 band — but clip them to a reasonable view window
+  // Max cone extent: 2x the current price range above/below current price
+  const lastPrice = prices[prices.length-1] || priceMax;
+  const viewBuffer = priceRange * 0.25;
+  const yMin = Math.max(0, priceMin - viewBuffer);
+
+  // Cone upper bound: cap at 3x last price to prevent NVDA-style stretching
+  const coneCapMultiple = 3.0;
+  let yMax = priceMax + viewBuffer;
+
+  let allLabels=labels;
+  if(coneObj&&coneObj.q50?.length){
+    const steps=coneObj.q50.length, baseMs=typeof lastMs==="number"?lastMs:Date.now(), futureLabels=[];
+    for(let i=1;i<=steps;i++) futureLabels.push(new Date(baseMs+i*86400000).toLocaleDateString());
+    allLabels=labels.concat(futureLabels);
+    datasets[0].data=prices.concat(new Array(steps).fill(null));
+    const pad=new Array(prices.length).fill(null);
+
+    // Clamp cone values to visible range so they don't blow up the y-axis
+    const coneCap = lastPrice * coneCapMultiple;
+    const clampCone = arr => arr.map(v => (v!=null&&v>coneCap) ? coneCap : v);
+
+    const q10c = clampCone(coneObj.q10);
+    const q50c = clampCone(coneObj.q50);
+    const q90c = clampCone(coneObj.q90);
+
+    // Adjust yMax to include clamped cone upper bound with buffer
+    const coneMax = Math.max(...q90c.filter(v=>v!=null&&Number.isFinite(v)), yMax);
+    yMax = Math.min(coneMax + viewBuffer * 0.5, coneCap + viewBuffer);
+
+    // NOTE: removed 5-95% outer band — it was the main culprit for blown y-axis
+    datasets.push({label:"fSDE Low (10%)",data:pad.concat(q10c),tension:0.25,pointRadius:0,borderWidth:0,fill:false,borderColor:"rgba(248,113,113,0.5)"});
+    datasets.push({label:"fSDE Band (10–90%)",data:pad.concat(q90c),tension:0.25,pointRadius:0,borderWidth:0,fill:"-1",backgroundColor:"rgba(34,211,238,0.09)",borderColor:"rgba(248,113,113,0.5)"});
+    datasets.push({label:"fSDE Median (50%)",data:pad.concat(q50c),tension:0.25,pointRadius:0,borderWidth:2,borderDash:[8,6],borderColor:"rgba(34,211,238,0.9)"});
+  }
+
+  chartInstance=new Chart(ctx,{
+    type:"line",
+    data:{labels:allLabels,datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:false,
+      plugins:{legend:{labels:{color:"rgba(255,255,255,0.7)"}}},
+      scales:{
+        x:{ticks:{color:"rgba(255,255,255,0.6)",maxTicksLimit:10},grid:{color:"rgba(255,255,255,0.06)"}},
+        y:{
+          min: yMin,
+          max: yMax,
+          ticks:{color:"rgba(255,255,255,0.6)"},
+          grid:{color:"rgba(255,255,255,0.06)"}
+        }
+      }
+    }
+  });
+}
+
+// ─── Analysis text ─────────────────────────────────────
+function analyzeCandles(candles,coneObj) {
+  const c=candles.c||[],o=candles.o||[],h=candles.h||[],l=candles.l||[];
+  if(c.length<2) return "Not enough candle points to analyze.";
+  const last=c[c.length-1], prev=c.length>=2?c[c.length-2]:last;
+  const dayChg=((last-prev)/(prev||1))*100;
+  if(c.length<15) return `Last close: ${Number(last).toFixed(2)}\nChange vs prior: ${dayChg.toFixed(2)}%\n\nWindow too small for full analysis. Use 1M or higher.`;
+  const r=rsi(c,14), rLast=r.filter(x=>typeof x==="number").pop();
+  const ma20=sma(c,20).filter(x=>x!==null).pop(), ma50=sma(c,50).filter(x=>x!==null).pop();
+  const trendTxt=typeof ma20==="number"&&typeof ma50==="number"?(ma20>ma50?"Bullish bias (MA20 > MA50)":"Bearish bias (MA20 < MA50)"):"Neutral";
+  const rsiTxt=typeof rLast==="number"?(rLast>=70?`RSI ${rLast.toFixed(1)} (overbought risk)`:rLast<=30?`RSI ${rLast.toFixed(1)} (oversold bounce potential)`:`RSI ${rLast.toFixed(1)} (neutral)`):"RSI not available";
+  const rets=[]; for(let i=1;i<c.length;i++) rets.push(Math.log(c[i]/c[i-1]));
+  const vol=stddev(rets.slice(-60)), atr=atr14(o,h,l,c), mdd=maxDrawdown(c)*100;
+  const noiseMap={"fam":"fαM (Lévy+fBm)","fbm":"Hosking fBm","studentt":"Student-t ν=4","gaussian":"Gaussian"};
+  const noiseName=noiseMap[document.getElementById("noiseDist")?.value||"fam"]||"fαM";
+  let txt=`Last close: ${Number(last).toFixed(2)}\n${trendTxt}\n${rsiTxt}\n\nPast-candle stats:\nVolatility (60-bar stdev): ${(vol*100).toFixed(2)}%\nATR14: ${atr&&atr>1e-7?atr.toFixed(2):"n/a"}\nMax drawdown (window): ${mdd.toFixed(1)}%`;
+  if(!coneObj?.params) return txt+"\n\nEnable the cone to forecast future candles.";
+  const p=coneObj.params;
+  const maNote=document.getElementById("maAnchorOn")?.checked?"(MA20 anchor active)":"(MA20 anchor off)";
+  const caputoNote=p.useCaputo?"Caputo D^H active":"simple momentum";
+  const hmmNote=p.useHMM?"HMM blended":"hard regime";
+  const clampVal=document.getElementById("returnClamp")?.value||25;
+
+  // v7.0: multifractal line
+  const mfLine=p.mfSpectrum
+    ?`Multifractal: Δh=${p.deltaH!=null?p.deltaH.toFixed(4):"n/a"} (${p.isMultifractal?"MULTIFRACTAL":"monofractal"}) | D_f spectrum: ${p.DfSpectrum||"n/a"}`
+    :"Multifractal: insufficient data for MF-DFA";
+
+  // v7.0: Lévy + asymmetric Hurst line
+  const levyLine=`Lévy α=${p.levyAlpha!=null?p.levyAlpha.toFixed(3):"n/a"} (${p.levyLabel||"?"}) | H+=${p.Hplus!=null?p.Hplus.toFixed(3):"?"} H−=${p.Hminus!=null?p.Hminus.toFixed(3):"?"} L=${p.leverageRatio!=null?p.leverageRatio.toFixed(3):"?"} → ${p.asymmetrySignal||"?"}`;
+
+  const regimeLine=`Regime: ${p.regime}${p.regimeRaw&&p.regimeRaw!==p.regime?` (HMM raw: ${p.regimeRaw})`:''}` +
+    `\nTrending prob: ${p.trendingProb!=null?(p.trendingProb*100).toFixed(0)+"%":"n/a"} | Certainty: ${p.regimeCertainty!=null?(p.regimeCertainty*100).toFixed(0)+"%":"n/a"}` +
+    `\nH_smoothed=${p.H.toFixed(3)}, H_raw=${Number(p.rawH||p.H).toFixed(3)}, D_f=${p.Df.toFixed(3)}, method=${p.hMethod||"R/S"}, conf=${p.hConfidence!=null?(Number(p.hConfidence)*100).toFixed(0)+"%":"n/a"}` +
+    `\nLookback: ${p.lookbackBars} bars (${p.lookbackMode}) | Vol: ${p.trainVol||"?"}% ${p.volClass||""} | Vol factor: ${p.volFactor||"?"}x`;
+  const calibLine=p.calibScore!=null
+    ?`Calibration: ${(p.calibScore*100).toFixed(0)}% score (${p.folds||3} folds) | RMSE_range ${p.calibRMSE} | Dir.acc ${p.calibDirAcc}%${p.structBreak?" | ⚠ STRUCTURAL BREAK":""}`
+    :"Calibration: insufficient data (auto-trade disabled)";
+  const freqStr=p.omegaSummary||"—";
+  const hLabel=p.hBandLabel||(p.H>0.65?"trending (persistent)":p.H>0.55?"mildly persistent":p.H<0.42?"mean-reverting":p.H<0.45?"mildly anti-persistent":"random walk (H≈0.5)");
+  return txt+`\n\nTrue M-FDE Forecast (noise=${noiseName}, ${caputoNote}, clamp=±${clampVal}%) ${maNote}:\nUp probability (adjusted): ${(coneObj.upProb*100).toFixed(1)}% | Raw: ${p.rawUpProb!=null?(p.rawUpProb*100).toFixed(1)+"%":"—"}\nExpected range (10–90%): ${coneObj.expectedLow.toFixed(2)} to ${coneObj.expectedHigh.toFixed(2)}\nMedian target (50%): ${coneObj.expectedMid.toFixed(2)}\nFreq components ω: ${freqStr}\n\n${mfLine}\n${levyLine}\n\n${regimeLine}\nHurst H=${p.H.toFixed(3)} → ${hLabel}\n${calibLine}\n\nNot financial advice.`;
+}
+
+// ─── M-FDE parameter UI readout (v6.3) ─────────────────
+function updateMfdeAssistUI(coneObj) {
+  const upEl=document.getElementById("mfdeUpProb"),rEl=document.getElementById("mfdeRange"),regEl=document.getElementById("mfdeRegime");
+  const DfEl=document.getElementById("mfde-Df"),HEl=document.getElementById("mfde-H"),omegaEl=document.getElementById("mfde-omega");
+  const aEl=document.getElementById("mfde-alpha"),bEl=document.getElementById("mfde-beta"),rgnEl=document.getElementById("mfde-regime");
+  const calEl=document.getElementById("mfde-calib"),rmseEl=document.getElementById("mfde-rmse"),dirEl=document.getElementById("mfde-diracc");
+  const calibValidEl=document.getElementById("calibValid");
+  const trendProbEl=document.getElementById("mfde-trendprob");
+  const upRawEl=document.getElementById("mfde-upraw");
+  const upAdjEl=document.getElementById("mfde-upadj");
+
+  if(!coneObj?.params){
+    [upEl,rEl,regEl,DfEl,HEl,omegaEl,aEl,bEl,rgnEl,calEl,rmseEl,dirEl,trendProbEl,upRawEl,upAdjEl].forEach(el=>{if(el)el.textContent="—";});
+    if(calibValidEl)calibValidEl.textContent="";
+    return;
+  }
+  const p=coneObj.params;
+  if(upEl) upEl.textContent=(coneObj.upProb*100).toFixed(1)+"% (adj)";
+  if(rEl)  rEl.textContent=`${coneObj.expectedLow.toFixed(2)} – ${coneObj.expectedHigh.toFixed(2)} (med ${coneObj.expectedMid.toFixed(2)})`;
+  if(regEl){regEl.textContent=p.regime;regEl.className="font-semibold "+(p.regime==="TRENDING"?"regime-trending":p.regime==="MEAN-REVERTING"?"regime-reverting":p.regime==="VOLATILE"?"regime-volatile":"regime-calm");}
+  if(DfEl) DfEl.textContent=p.Df.toFixed(4)+(p.isMultifractal?" (multifractal)":"");
+  // v7.0: MF-DFA spectrum
+  const DfSpecEl=document.getElementById("mfde-Dfspectrum");
+  const deltaHEl=document.getElementById("mfde-deltah");
+  if(DfSpecEl) DfSpecEl.textContent=p.DfSpectrum||"n/a (need 40+ bars)";
+  if(deltaHEl){
+    const dh=p.deltaH!=null?p.deltaH:null;
+    deltaHEl.textContent=dh!=null?dh.toFixed(4)+(Math.abs(dh)>0.08?" (multifractal)":"  (monofractal)"):"—";
+    deltaHEl.style.color=dh!=null?(Math.abs(dh)>0.15?"#f87171":Math.abs(dh)>0.08?"#fbbf24":"#34d399"):"#71717a";
+  }
+  if(HEl) HEl.textContent=p.H.toFixed(4)+" (smoothed)";
+  const rawHEl=document.getElementById("mfde-rawH");
+  const hconfEl=document.getElementById("mfde-hconf");
+  const hmethEl=document.getElementById("mfde-hmethod");
+  if(rawHEl) rawHEl.textContent=p.rawH!=null?Number(p.rawH).toFixed(4):"—";
+  if(hconfEl){
+    const conf=p.hConfidence!=null?Number(p.hConfidence):null;
+    hconfEl.textContent=conf!=null?(conf*100).toFixed(0)+"%":"—";
+    hconfEl.style.color=conf!=null?(conf>0.75?"#34d399":conf>0.4?"#fbbf24":"#f87171"):"#71717a";
+  }
+  if(hmethEl) hmethEl.textContent=p.hMethod||"—";
+  // v6.3: show multi-freq ω summary
+  if(omegaEl) omegaEl.textContent=p.omegaSummary||`${p.omega.toFixed(4)} rad`;
+  if(aEl) aEl.textContent=p.alpha.toFixed(5);
+  if(bEl) bEl.textContent=p.beta.toFixed(5);
+  if(rgnEl){
+    rgnEl.textContent=p.regime+(p.useHMM?" (HMM)":" (hard)");
+    rgnEl.className="font-mono font-bold "+regimeCss(p.regime);
+  }
+  // v6.4: regime certainty
+  const regCertEl=document.getElementById("mfde-regcert");
+  if(regCertEl){
+    const cert=p.regimeCertainty!=null?Number(p.regimeCertainty):null;
+    regCertEl.textContent=cert!=null?(cert*100).toFixed(0)+"%":"—";
+    regCertEl.style.color=cert!=null?(cert>0.7?"#34d399":cert>0.5?"#fbbf24":"#f87171"):"#71717a";
+  }
+  if(trendProbEl) trendProbEl.textContent=p.trendingProb!=null?(p.trendingProb*100).toFixed(1)+"%":"—";
+  if(upRawEl)  upRawEl.textContent=p.rawUpProb!=null?(p.rawUpProb*100).toFixed(1)+"%":"—";
+  if(upAdjEl)  upAdjEl.textContent=p.adjustedUpProb!=null?(p.adjustedUpProb*100).toFixed(1)+"%":"—";
+  // v6.4: lookback + vol class
+  const lbEl=document.getElementById("mfde-lookback");
+  const vcEl=document.getElementById("mfde-volclass");
+  if(lbEl) lbEl.textContent=p.lookbackBars!=null?`${p.lookbackBars} bars (${p.lookbackMode||"auto"})`:"—";
+  if(vcEl){
+    vcEl.textContent=p.volClass||"—";
+    vcEl.style.color=p.volClass==='LOW'?"#34d399":p.volClass==='MEDIUM'?"#60a5fa":p.volClass==='HIGH'?"#fbbf24":"#f87171";
+  }
+  if(calEl) calEl.textContent=p.calibScore!=null?(p.calibScore*100).toFixed(1)+"%":"n/a";
+  // v6.4: show vol-adjusted tolerance in RMSE display
+  if(rmseEl) rmseEl.textContent=p.calibRMSE!=null?`${p.calibRMSE} (range-norm)`:"n/a";
+  if(dirEl) dirEl.textContent=p.calibDirAcc!=null?p.calibDirAcc+"%":"n/a";
+  const calColor=p.calibScore!=null?(p.calibScore>0.6?"#34d399":p.calibScore>0.4?"#fbbf24":"#f87171"):"#71717a";
+  if(calEl) calEl.style.color=calColor;
+  if(calibValidEl){
+    if(p.structBreak){
+      calibValidEl.textContent=`⚠ Structural break in ${p.folds||3} folds — score penalized 15%`;
+      calibValidEl.className="text-xs text-orange-400";
+    } else if(p.calibValid){
+      const mfNote=p.isMultifractal?" · multifractal":"";
+      calibValidEl.textContent=`✓ ${p.folds||3}-fold walk-forward valid${mfNote}`;
+      calibValidEl.className="text-xs text-emerald-400";
+    } else {
+      calibValidEl.textContent="⚠ Not enough data — auto-trade disabled";
+      calibValidEl.className="text-xs text-yellow-400";
+    }
+  }
+
+  // v7.0: Asymmetric Hurst display
+  const hasymEl=document.getElementById("mfde-Hasym");
+  const leverageEl=document.getElementById("mfde-leverage");
+  if(hasymEl&&p.Hplus!=null){
+    hasymEl.textContent=`H+=${p.Hplus.toFixed(3)}  H−=${p.Hminus.toFixed(3)}  (${p.asymmetrySignal||"—"})`;
+    const asym=p.Hminus-p.Hplus;
+    hasymEl.style.color=asym>0.05?"#f87171":asym<-0.05?"#34d399":"#71717a";
+  }
+  if(leverageEl&&p.leverageRatio!=null){
+    leverageEl.textContent=p.leverageRatio.toFixed(3)+(p.leverageRatio>1.05?" (bearish asymmetry)":p.leverageRatio<0.95?" (bullish asymmetry)":" (symmetric)");
+    leverageEl.style.color=p.leverageRatio>1.1?"#f87171":p.leverageRatio<0.9?"#34d399":"#71717a";
+  }
+
+  // v7.0: Lévy tail index
+  const levyEl=document.getElementById("mfde-levy");
+  if(levyEl&&p.levyAlpha!=null){
+    levyEl.textContent=`α=${p.levyAlpha.toFixed(3)} — ${p.levyLabel||""}`;
+    levyEl.style.color=p.levyAlpha<1.3?"#f87171":p.levyAlpha<1.7?"#fbbf24":"#34d399";
+  }
+}
+
+// ─── Timeframes ─────────────────────────────────────────
+function createTimeframeBtns(){
+  const ranges=[{id:"1d",label:"1D"},{id:"5d",label:"5D"},{id:"1m",label:"1M"},{id:"6m",label:"6M"},{id:"1y",label:"1Y"},{id:"5y",label:"5Y"}];
+  const box=document.getElementById("timeframeBtns"); box.innerHTML="";
+  ranges.forEach(r=>{ const b=document.createElement("button"); b.textContent=r.label; b.className="px-5 py-3 rounded-2xl text-sm font-semibold bg-white/10 hover:bg-white/20"; b.onclick=()=>{
+    // GROK UPGRADE 1: reset smoother on timeframe change — new window = fresh EMA
+    hurstSmoother.delete(currentSymbol);
+    currentRange=r.id; loadChartAndAnalysis();
+  }; box.appendChild(b); });
+}
+
+// ─── FIX 7: sampling frequency mismatch — only warn on current crypto symbol ──
+function checkFreqMismatch(symbol) {
+  const badge = document.getElementById("freqWarnBadge");
+  // Only warn if the currently-loaded symbol IS crypto
+  // (comparing its daily-ish data to stock daily is the real problem)
+  if(isCryptoSymbol(symbol)){
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+// ─── Load chart + analysis ──────────────────────────────
+async function loadChartAndAnalysis() {
+  setAnalysis("Loading candles…","Fetching candle data…");
+  try {
+    const candles=await loadCandles(currentSymbol,currentRange);
+    const srcLines=["Quotes: Finnhub (stocks, requires key) or CoinGecko (crypto)",`Candles: ${candles&&candles.source?candles.source:"Provider unavailable"}`];
+    if(candles?.rawUrl) srcLines.push(`Candles URL: ${candles.rawUrl}`);
+    setSources(srcLines);
+    if(!candles||candles._err){ lastCandles=null; lastCone=null; updateMfdeAssistUI(null); drawChart([],[],null,Date.now()); setAnalysis("No candle data",`Candle fetch failed: ${candles?._err||"unknown"}`); setDebug({symbol:currentSymbol,range:currentRange,candles}); return; }
+    const t=candles.t||[], c=candles.c||[];
+    if(c.length<2){ lastCandles=null; lastCone=null; updateMfdeAssistUI(null); drawChart([],[],null,Date.now()); setAnalysis("No candle data","Provider returned too few points."); return; }
+    lastCandles=candles;
+    const labels=t.map(ms=>new Date(ms).toLocaleDateString()), prices=c.map(Number), lastMs=t[t.length-1];
+    const mfdeOn=document.getElementById("mfdeOn").checked;
+    const steps=Math.max(5,Math.min(120,Number(document.getElementById("mfdeSteps").value||30)));
+    const sims=Math.max(50,Math.min(800,Number(document.getElementById("mfdeSims").value||300)));
+    const coneObj=(mfdeOn&&prices.length>=60)?mfdeCone(prices,candles,steps,sims):null;
+    lastCone=coneObj; updateMfdeAssistUI(coneObj);
+    drawChart(labels,prices,coneObj,lastMs);
+    setAnalysis(`${currentSymbol} • M-FDE Analysis`,analyzeCandles(candles,coneObj));
+    setDebug({symbol:currentSymbol,range:currentRange,points:prices.length,noiseDist:document.getElementById("noiseDist")?.value,returnClamp:document.getElementById("returnClamp")?.value,maAnchor:document.getElementById("maAnchorOn")?.checked,mfde:coneObj?{Df:coneObj.params.Df,H_smoothed:coneObj.params.H,H_raw:coneObj.params.rawH,H_conf:coneObj.params.hConfidence,H_method:coneObj.params.hMethod,regime:coneObj.params.regime,regimeRaw:coneObj.params.regimeRaw,upProb:coneObj.upProb,calibScore:coneObj.params.calibScore,calibValid:coneObj.params.calibValid,deltaH:coneObj.params.deltaH,isMultifractal:coneObj.params.isMultifractal,levyAlpha:coneObj.params.levyAlpha,Hplus:coneObj.params.Hplus,Hminus:coneObj.params.Hminus,leverage:coneObj.params.leverageRatio,lookback:coneObj.params.lookbackBars}:"off"});
+    simMarkToMarket(); watchRefreshDebounced(700,false);
+  } catch(err){ setAnalysis("Chart error",err?.message||String(err)); setDebug({symbol:currentSymbol,range:currentRange,error:err?.message||String(err)}); }
+}
+
+// ─── Load asset ────────────────────────────────────────
+async function loadAsset(symbol) {
+  const newSym=norm(symbol||"NVDA");
+  // GROK UPGRADE 1: reset Hurst smoother when switching symbols
+  // so stale EMA from a different asset doesn't bleed into the new one
+  if(newSym !== currentSymbol) hurstSmoother.delete(newSym);
+  currentSymbol=newSym;
+  document.getElementById("symbolDisplay").textContent=currentSymbol;
+  checkFreqMismatch(currentSymbol);
+  if(isCryptoSymbol(currentSymbol)){
+    const p=await coingeckoPriceUSD(currentSymbol);
+    if(p&&!p._err){ const last=Number(p.price||0); document.getElementById("priceDisplay").textContent=last.toFixed(2); const ch=document.getElementById("changeDisplay"),dp=Number(p.change24||0); ch.textContent=`${dp>=0?"+":""}${dp.toFixed(2)}% (24h)`; ch.className=dp>=0?"text-3xl font-medium mt-1 text-emerald-400":"text-3xl font-medium mt-1 text-red-400"; }
+    else { document.getElementById("priceDisplay").textContent="0.00"; document.getElementById("changeDisplay").textContent=`Crypto quote error: ${p?._err||"unknown"}`; document.getElementById("changeDisplay").className="text-3xl font-medium mt-1 text-zinc-400"; }
+  } else {
+    const q=await finnhubQuote(currentSymbol);
+    if(q&&!q._err){ const last=Number(q.c||0),d=Number(q.d||0),dp=Number(q.dp||0); document.getElementById("priceDisplay").textContent=last.toFixed(2); const ch=document.getElementById("changeDisplay"); ch.textContent=`${d>=0?"+":""}${d.toFixed(2)} (${dp.toFixed(2)}%)`; ch.className=d>=0?"text-3xl font-medium mt-1 text-emerald-400":"text-3xl font-medium mt-1 text-red-400"; }
+    else { const reason=q&&q._err?q._err:"unknown_error"; document.getElementById("priceDisplay").textContent="0.00"; document.getElementById("changeDisplay").textContent=reason==="missing_key"?"Add Finnhub key for stock quotes (🔑)":reason==="http_429"?"Finnhub rate limit. Using candle close.":`Quote error: ${reason}`; document.getElementById("changeDisplay").className="text-3xl font-medium mt-1 text-zinc-400"; }
+  }
+  await loadChartAndAnalysis();
+  if(!isCryptoSymbol(currentSymbol)){ const shown=Number(document.getElementById("priceDisplay").textContent||0); if((!shown||!Number.isFinite(shown)||shown<=0)&&lastCandles?.c?.length){ const last=Number(lastCandles.c[lastCandles.c.length-1]); if(Number.isFinite(last)&&last>0) document.getElementById("priceDisplay").textContent=last.toFixed(2); } }
+  await loadMarketNews(false); await loadAssetNews(currentSymbol,false); watchRefreshDebounced(300,false);
+}
+async function loadAssetWithRealtime(symbol){ await loadAsset(symbol); }
+
+// ─── Realtime polling ───────────────────────────────────
+function stopRealtime(){ if(pollTimer)clearInterval(pollTimer); pollTimer=null; }
+async function pollTick(){
+  if(!apiKey||isCryptoSymbol(currentSymbol)) return;
+  const q=await finnhubQuote(currentSymbol);
+  if(q&&q._err==="http_429"){ const back=Number(q._backoffMs||4000); setRTStatus(`Rate limited (429). Backoff ${back}ms`,false); const pi=document.getElementById("pollMs"),cur=Number(pi?.value||6000),next=Math.min(15000,Math.max(cur,Math.floor(back*1.2))); if(pi)pi.value=String(next); if(lastCandles?.c?.length){const last=Number(lastCandles.c[lastCandles.c.length-1]);if(Number.isFinite(last)&&last>0)document.getElementById("priceDisplay").textContent=last.toFixed(2);} return; }
+  if(!q||q._err){setRTStatus(`Polling failed: ${q?._err||"unknown"}`,false); return;}
+  const px=Number(q.c||0);
+  if(Number.isFinite(px)&&px>0){ document.getElementById("priceDisplay").textContent=px.toFixed(2); setRTLast(); setRTStatus("Polling ok",true); simMarkToMarket(); watchRefreshDebounced(1200,false); }
+}
+function applyRealtime(){
+  const rtMode=document.getElementById("rtMode").value; stopRealtime();
+  if(!apiKey){setRTStatus("Enter Finnhub key (🔑) first",false);return;}
+  if(rtMode==="off"){setRTStatus("Realtime off",false);return;}
+  const ms=Math.max(1500,Number(document.getElementById("pollMs").value||6000));
+  setRTStatus(`Polling every ${ms}ms`,true); pollTick(); pollTimer=setInterval(pollTick,ms);
+}
+
+// ─── Key modal ──────────────────────────────────────────
+function showKeyModal(){ document.getElementById("apiKeyInput").value=apiKey||""; document.getElementById("keyModal").classList.remove("hidden"); }
+function hideKeyModal(){ document.getElementById("keyModal").classList.add("hidden"); }
+function saveApiKey(){ apiKey=document.getElementById("apiKeyInput").value.trim(); safeSet("finnhubKey",apiKey); hideKeyModal(); stopRealtime(); applyRealtime(); loadMarketNews(true); loadAssetWithRealtime(currentSymbol); }
+
+// ─── Simulator ──────────────────────────────────────────
+function simShowTab(name){
+  const tabs=["ticket","positions","orders","log","metrics","backtest"];
+  for(const t of tabs){ document.getElementById("simTab"+cap(t)).classList.add("hidden"); document.getElementById("tab"+cap(t)).classList.remove("tabActive"); }
+  document.getElementById("simTab"+cap(name)).classList.remove("hidden"); document.getElementById("tab"+cap(name)).classList.add("tabActive");
+  if(name==="positions")simRenderPositions(); if(name==="orders")simRenderOrders(); if(name==="log")simRenderLog(); if(name==="metrics")simRenderMetrics();
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function simTypeChanged(){ const t=document.getElementById("simType").value; document.getElementById("simLimit").classList.toggle("hidden",t!=="LIMIT"); }
+function simLoad(){ sim=safeGet(SIM_KEY,sim); if(!sim||typeof sim!=="object")sim={startingCash:200000,cash:200000,positions:{},orders:[],trades:[],equityCurve:[]}; sim.startingCash=Number(sim.startingCash||200000); sim.cash=Number(sim.cash||sim.startingCash); sim.positions=sim.positions||{}; sim.orders=sim.orders||[]; sim.trades=sim.trades||[]; sim.equityCurve=sim.equityCurve||[]; }
+function simSave(){ safeSet(SIM_KEY,sim); }
+function simResetConfirm(){ if(!confirm("Reset paper simulator? Clears all positions, orders, log, equity curve."))return; sim={startingCash:sim.startingCash||200000,cash:sim.startingCash||200000,positions:{},orders:[],trades:[],equityCurve:[]}; simSave(); simUpdateHeader(); simRenderPositions(); simRenderOrders(); simRenderLog(); simRenderMetrics(); watchRefreshDebounced(200,true); }
+function simGetMarkPrice(sym){ const s=norm(sym); if(s===currentSymbol){const v=Number(document.getElementById("priceDisplay").textContent||0);if(Number.isFinite(v)&&v>0)return v;} return null; }
+function simGetLastCloseFromCandles(candles){ if(!candles?.c?.length)return null; const v=Number(candles.c[candles.c.length-1]); return Number.isFinite(v)?v:null; }
+function simUpdateHeader(){
+  let eq=sim.cash;
+  for(const sym of Object.keys(sim.positions)){const p=sim.positions[sym];if(!p||!Number.isFinite(p.qty)||p.qty===0)continue;let mark=null;if(norm(sym)===currentSymbol){mark=simGetMarkPrice(sym);if(!mark)mark=simGetLastCloseFromCandles(lastCandles);}else{mark=Number(p.lastMark||p.avg||0);}eq+=p.qty*(mark||0);}
+  const pl=eq-sim.startingCash;
+  document.getElementById("simCash").textContent=fmtMoney(sim.cash); document.getElementById("simEquity").textContent=fmtMoney(eq);
+  const plEl=document.getElementById("simPL"); plEl.textContent=fmtMoney(pl); plEl.className=pl>=0?"text-emerald-300 font-semibold":"text-red-300 font-semibold";
+}
+function simLogTrade(e){sim.trades.push(e);simSave();}
+function simRecordEquity(ts){let eq=sim.cash;for(const sym of Object.keys(sim.positions)){const p=sim.positions[sym];if(!p||!Number.isFinite(p.qty)||p.qty===0)continue;eq+=p.qty*Number(p.lastMark||p.avg||0);}sim.equityCurve.push({ts:ts||Date.now(),equity:eq});if(sim.equityCurve.length>4000)sim.equityCurve.splice(0,sim.equityCurve.length-4000);simSave();}
+function simPlaceOrder(){
+  const side=document.getElementById("simSide").value,type=document.getElementById("simType").value,qty=Number(document.getElementById("simQty").value||0),limit=Number(document.getElementById("simLimit").value||0);
+  if(!Number.isFinite(qty)||qty<=0){alert("Quantity must be greater than zero.");return;}
+  if(type==="LIMIT"&&(!Number.isFinite(limit)||limit<=0)){alert("Limit price must be greater than zero.");return;}
+  const id="o_"+Math.random().toString(16).slice(2)+"_"+Date.now();
+  sim.orders.push({id,sym:currentSymbol,side,type,qty,limit:type==="LIMIT"?limit:null,placedAt:Date.now(),status:"WORKING"});
+  simSave(); simProcessOrdersForSymbol(currentSymbol); simUpdateHeader(); simRenderOrders(); simRenderPositions(); simRenderLog(); simRenderMetrics(); watchRefreshDebounced(300,false);
+}
+function simProcessOrdersForSymbol(sym){
+  const s=norm(sym),candles=(s===currentSymbol)?lastCandles:null,markClose=simGetLastCloseFromCandles(candles),hasOHLC=candles&&candles.o&&candles.h&&candles.l&&candles.c,i=candles&&candles.c?candles.c.length-1:-1;
+  const bar=hasOHLC&&i>=0?{o:Number(candles.o[i]),h:Number(candles.h[i]),l:Number(candles.l[i]),c:Number(candles.c[i]),ts:Number(candles.t[i]||Date.now())}:null;
+  const remaining=[];
+  for(const ord of sim.orders){
+    if(ord.status!=="WORKING"){remaining.push(ord);continue;} if(norm(ord.sym)!==s){remaining.push(ord);continue;}
+    let fillPrice=null;
+    if(ord.type==="MARKET"){if(bar&&Number.isFinite(bar.o)&&bar.o>0)fillPrice=bar.o;else if(Number.isFinite(markClose)&&markClose>0)fillPrice=markClose;}
+    else if(ord.type==="LIMIT"){if(bar&&Number.isFinite(bar.h)&&Number.isFinite(bar.l)){const L=ord.limit;if(Number.isFinite(L)&&L>0&&bar.l<=L&&L<=bar.h)fillPrice=L;}else if(Number.isFinite(markClose)&&Number.isFinite(ord.limit)){if(ord.side==="BUY"&&markClose<=ord.limit)fillPrice=ord.limit;if(ord.side==="SELL"&&markClose>=ord.limit)fillPrice=ord.limit;}}
+    if(!fillPrice||!Number.isFinite(fillPrice)||fillPrice<=0){remaining.push(ord);continue;}
+    const qty=Number(ord.qty),value=qty*fillPrice;
+    if(ord.side==="BUY"){if(sim.cash<value){ord.status="REJECTED";simLogTrade({ts:Date.now(),sym:s,side:"REJECT",qty,price:fillPrice,value:0,note:"Insufficient cash"});continue;}sim.cash-=value;const pos=sim.positions[s]||{qty:0,avg:0,lastMark:fillPrice};const newQty=pos.qty+qty,newAvg=newQty===0?0:((pos.qty*pos.avg)+value)/newQty;sim.positions[s]={qty:newQty,avg:newAvg,lastMark:fillPrice};ord.status="FILLED";simLogTrade({ts:Date.now(),sym:s,side:"BUY",qty,price:fillPrice,value:-value,note:ord.type});}
+    else{const pos=sim.positions[s]||{qty:0,avg:fillPrice,lastMark:fillPrice};sim.cash+=value;const newQty=pos.qty-qty;let newAvg=pos.avg;if(newQty===0)newAvg=0;sim.positions[s]={qty:newQty,avg:newAvg,lastMark:fillPrice};ord.status="FILLED";simLogTrade({ts:Date.now(),sym:s,side:"SELL",qty,price:fillPrice,value:value,note:ord.type});}
+  }
+  sim.orders=remaining;simSave();simRecordEquity(Date.now());
+}
+function simMarkToMarket(){for(const sym of Object.keys(sim.positions)){const s=norm(sym),p=sim.positions[s];if(!p)continue;if(s===currentSymbol){const mark=(simGetMarkPrice(s)||simGetLastCloseFromCandles(lastCandles)||p.lastMark||p.avg||0);sim.positions[s].lastMark=mark;}}simSave();simUpdateHeader();}
+function simRenderPositions(){
+  const box=document.getElementById("simPositions"),rows=[];
+  const keys=Object.keys(sim.positions);
+  if(!keys.length){box.innerHTML=`<div class="text-xs text-zinc-500">No positions yet.</div>`;return;}
+  for(const sym of keys.sort()){const p=sim.positions[sym];if(!p||!Number.isFinite(p.qty)||p.qty===0)continue;const mark=Number(p.lastMark||p.avg||0),pl=p.qty*mark-p.qty*p.avg;rows.push(`<div class="mb-2 p-3 rounded-2xl pill"><div class="flex items-center justify-between"><div class="font-semibold text-cyan-200">${escapeHtml(sym)}</div><div class="${pl>=0?"text-emerald-300":"text-red-300"} font-semibold">${fmtMoney(pl)}</div></div><div class="text-xs text-zinc-400 mt-1">Qty: ${Number(p.qty).toFixed(4)} • Avg: ${Number(p.avg).toFixed(4)} • Mark: ${Number(mark).toFixed(4)}</div><div class="mt-2 flex gap-2 flex-wrap"><button class="text-xs px-3 py-2 rounded-2xl btn" onclick="loadAssetWithRealtime('${escapeHtml(sym)}')">View</button><button class="text-xs px-3 py-2 rounded-2xl btnDanger" onclick="simClosePosition('${escapeHtml(sym)}')">Close</button></div></div>`);}
+  box.innerHTML=rows.join("")||`<div class="text-xs text-zinc-500">No open positions.</div>`;
+}
+function simClosePosition(sym){
+  const s=norm(sym),p=sim.positions[s];if(!p||!Number.isFinite(p.qty)||p.qty===0)return;
+  let mark=null;if(s===currentSymbol){mark=simGetMarkPrice(s)||simGetLastCloseFromCandles(lastCandles);}else{mark=Number(p.lastMark||p.avg||0);}
+  if(!mark||!Number.isFinite(mark)||mark<=0){alert("No valid mark price to close position.");return;}
+  const qtyAbs=Math.abs(p.qty),side=p.qty>0?"SELL":"BUY",id="o_close_"+Date.now();
+  sim.orders.push({id,sym:s,side,type:"MARKET",qty:qtyAbs,limit:null,placedAt:Date.now(),status:"WORKING"});
+  if(s===currentSymbol)simProcessOrdersForSymbol(s);
+  else{sim.orders=sim.orders.filter(o=>o.id!==id);const value=qtyAbs*mark;if(side==="BUY"){if(sim.cash<value){simLogTrade({ts:Date.now(),sym:s,side:"REJECT",qty:qtyAbs,price:mark,value:0,note:"Insufficient cash"});}else{sim.cash-=value;sim.positions[s].qty=0;sim.positions[s].avg=0;sim.positions[s].lastMark=mark;simLogTrade({ts:Date.now(),sym:s,side:"BUY",qty:qtyAbs,price:mark,value:-value,note:"Close"});}}else{sim.cash+=value;sim.positions[s].qty=0;sim.positions[s].avg=0;sim.positions[s].lastMark=mark;simLogTrade({ts:Date.now(),sym:s,side:"SELL",qty:qtyAbs,price:mark,value:value,note:"Close"});}simRecordEquity(Date.now());simSave();}
+  simUpdateHeader();simRenderPositions();simRenderOrders();simRenderLog();simRenderMetrics();watchRefreshDebounced(300,false);
+}
+function simRenderOrders(){const box=document.getElementById("simOrders"),working=sim.orders.filter(o=>o.status==="WORKING");if(!working.length){box.innerHTML=`<div class="text-xs text-zinc-500">No working orders.</div>`;return;}box.innerHTML=working.slice().reverse().map(o=>{const t=new Date(o.placedAt||Date.now()).toLocaleTimeString(),lim=o.type==="LIMIT"?` • Lmt ${Number(o.limit).toFixed(4)}`:"";return `<div class="mb-2 p-3 rounded-2xl pill"><div class="flex items-center justify-between"><div class="font-semibold">${escapeHtml(o.side)} ${escapeHtml(o.sym)} • ${escapeHtml(o.type)}</div><button class="text-xs px-3 py-2 rounded-2xl btnDanger" onclick="simCancelOrder('${escapeHtml(o.id)}')">Cancel</button></div><div class="text-xs text-zinc-400 mt-1">Qty ${Number(o.qty).toFixed(4)}${lim} • ${t}</div></div>`;}).join("");}
+function simCancelOrder(id){sim.orders=sim.orders.filter(o=>o.id!==id);simSave();simRenderOrders();}
+function simRenderLog(){const box=document.getElementById("simLog");if(!sim.trades.length){box.innerHTML=`<div class="text-xs text-zinc-500">No trades yet.</div>`;return;}box.innerHTML=sim.trades.slice().reverse().slice(0,80).map(t=>{const ts=new Date(t.ts||Date.now()).toLocaleString(),val=Number(t.value||0),valTxt=(val>=0?"+":"")+fmtMoney(val);return `<div class="mb-2 p-3 rounded-2xl pill"><div class="flex items-center justify-between"><div class="font-semibold">${ts}</div><div class="${val>=0?"text-emerald-300":"text-red-300"} font-semibold">${valTxt}</div></div><div class="text-xs text-zinc-400 mt-1">${escapeHtml(t.side)} ${escapeHtml(t.sym)} • Qty ${Number(t.qty||0).toFixed(4)} • Px ${Number(t.price||0).toFixed(4)} • ${escapeHtml(t.note||"")}</div></div>`;}).join("");}
+function simRenderMetrics(){
+  const trades=sim.trades.filter(t=>t.side==="BUY"||t.side==="SELL"),count=trades.length;
+  let flow=0;for(const t of trades)flow+=Number(t.value||0);
+  const eq=sim.cash+Object.keys(sim.positions).reduce((acc,sym)=>{const p=sim.positions[sym];return acc+Number(p?.qty||0)*Number(p?.lastMark||p?.avg||0);},0);
+  const totalPL=eq-sim.startingCash;
+  let mdd=0;if(sim.equityCurve.length>5){let peak=sim.equityCurve[0].equity;for(const e of sim.equityCurve){peak=Math.max(peak,e.equity);mdd=Math.min(mdd,(e.equity-peak)/peak);}}
+  document.getElementById("simMetrics").textContent=`Trades: ${count}\nStarting cash: ${fmtMoney(sim.startingCash)}\nCash: ${fmtMoney(sim.cash)}\nEquity: ${fmtMoney(eq)}\nTotal P/L: ${fmtMoney(totalPL)}\nMax drawdown (equity curve): ${(mdd*100).toFixed(2)}%\n\nNote: Sim uses candle-based fills. Not brokerage execution.`;
+}
+function simAutoSize(){
+  const qtyEl=document.getElementById("simQty"),cone=lastCone;
+  if(!cone?.params||!lastCandles?.c?.length){alert("Need candles and cone for auto size.");return;}
+  const last=Number(lastCandles.c[lastCandles.c.length-1]);if(!Number.isFinite(last)||last<=0)return;
+  const H=cone.params.H,up=cone.upProb;
+  const eq=sim.cash+Object.keys(sim.positions).reduce((acc,sym)=>{const p=sim.positions[sym];const mark=Number(p?.lastMark||p?.avg||0);return acc+Number(p?.qty||0)*mark;},0);
+  const hFactor=H>0.65?1.5:H<0.42?0.6:1.0;
+  const budgetPct=(0.003+0.008*(H>0.5?H-0.5:0))*hFactor;
+  const budget=eq*budgetPct;
+  const atr=atr14(lastCandles.o,lastCandles.h,lastCandles.l,lastCandles.c);
+  const riskPer=(atr&&atr>0)?atr:(0.02*last);
+  const conf=clamp(Math.abs(up-0.5)*2,0,1);
+  const adjBudget=budget*(0.35+0.65*conf);
+  qtyEl.value=Math.max(1,Math.floor(adjBudget/Math.max(riskPer,0.0001)));
+}
+
+// FIX 5: auto-trade now checks calibration validity before firing
+function simAutoTrade(){
+  const cone=lastCone;
+  if(!cone?.params){alert("Need cone for auto trade.");return;}
+
+  // Block if calibration invalid
+  if(!cone.params.calibValid){
+    alert("Auto trade blocked: insufficient price history to validate the M-FDE signal.\nUse a longer timeframe (6M or 1Y) before auto-trading.");
+    return;
+  }
+
+  // Block if structural break detected
+  if(cone.params.structBreak){
+    alert("Auto trade blocked: structural break detected in calibration window.\nThe test set contained a regime change — signal is unreliable.\nTry a shorter lookback window (1Y or 6M).");
+    return;
+  }
+
+  const up=cone.upProb;
+  const H=cone.params.H;
+  const regime=cone.params.regime;
+  const trendProb=cone.params.trendingProb||0;
+  const regimeCert=cone.params.regimeCertainty||0;
+  const ma20=cone.params.ma20;
+  const ma50=cone.params.ma50;
+
+  if(!Number.isFinite(ma20)||!Number.isFinite(ma50)){alert("MA values not ready.");return;}
+
+  simAutoSize();
+
+  // v6.4: block on UNCERTAIN regimes — H contradicts HMM
+  if(regime==='UNCERTAIN-BULL'||regime==='UNCERTAIN-BEAR'){
+    alert(`Auto trade blocked: UNCERTAIN regime.\nHMM and Hurst (H=${H.toFixed(3)}) disagree — no reliable edge.\nWait for regime to resolve.`);
+    return;
+  }
+
+  // Block on VOLATILE with low certainty
+  if(regime==="VOLATILE"&&regimeCert<0.6){
+    alert("Volatile regime with low certainty. Auto trade skipped.");
+    return;
+  }
+
+  // v6.4: LEANING-TREND requires stronger signal threshold than full TRENDING
+  const isTrending = regime==='TRENDING' || regime==='LEANING-TREND';
+  const isReverting = regime==='MEAN-REVERTING' || regime==='LEANING-REVERT';
+  const upThresh = regime==='LEANING-TREND' ? 0.62 : 0.58;  // stricter for uncertain trend
+  const dnThresh = regime==='LEANING-REVERT' ? 0.38 : 0.42;
+
+  if(up>upThresh && ma20>ma50 && H>=0.45 && isTrending){
+    document.getElementById("simSide").value="BUY";
+    document.getElementById("simType").value="MARKET";
+    simTypeChanged(); simPlaceOrder(); return;
+  }
+  if(up<dnThresh && ma20<ma50 && H>=0.45 && isReverting){
+    document.getElementById("simSide").value="SELL";
+    document.getElementById("simType").value="MARKET";
+    simTypeChanged(); simPlaceOrder(); return;
+  }
+
+  alert(`No strong M-FDE edge signal.\nH=${H.toFixed(3)} | Regime=${regime} | upProb=${(up*100).toFixed(1)}% | TrendProb=${(trendProb*100).toFixed(0)}%\nVol class: ${cone.params.volClass||"?"} | Lookback: ${cone.params.lookbackBars||"?"} bars`);
+}
+
+// ─── GROK UPGRADE 3: Signal backtest loop ──────────────────────────────────────
+// Walks 252-bar windows through full history, tests auto-trade rule, tallies outcomes.
+async function runBacktest() {
+  const statusEl=document.getElementById("btStatus");
+  const summaryEl=document.getElementById("btSummary");
+  const resultsEl=document.getElementById("btResults");
+  const horizon=Number(document.getElementById("btHorizon")?.value||10);
+
+  statusEl.textContent="Loading 5Y candles for backtest…";
+  summaryEl.textContent=""; resultsEl.innerHTML="";
+
+  const candles = await loadCandles(currentSymbol, "5y");
+  if(!candles?.c?.length || candles._err){
+    statusEl.textContent="Failed to load candles: "+(candles?._err||"unknown");
+    return;
+  }
+  const prices = candles.c.map(Number);
+  const ts = candles.t || [];
+  const window=252;
+
+  if(prices.length < window + horizon + 20){
+    statusEl.textContent=`Not enough history. Need ${window+horizon+20} bars, got ${prices.length}.`;
+    return;
+  }
+
+  statusEl.textContent="Running backtest…";
+  const results=[], step=5;
+  let processed=0;
+
+  for(let t=window; t<prices.length-horizon; t+=step){
+    const slice=prices.slice(t-window,t);
+    const rets=[]; for(let i=1;i<slice.length;i++) rets.push(Math.log(slice[i]/slice[i-1]));
+    const hInfo=getSmoothedHurst(currentSymbol+"_bt_"+t, slice);
+    const H=hInfo.smoothedH;
+    const omega=estimateDomFreqRobust(rets.slice(-60));
+    const regime=detectRegime(slice,rets,H);
+    const ma20v=sma(slice,20).filter(x=>x!==null).pop()??slice[slice.length-1];
+    const ma50v=sma(slice,50).filter(x=>x!==null).pop()??slice[slice.length-1];
+
+    // Run a quick low-sim cone for upProb
+    const P0=slice[slice.length-1], Pprev=slice[slice.length-2];
+    const mu=rets.slice(-60).reduce((a,b)=>a+b,0)/Math.min(60,rets.length);
+    const vol=Math.sqrt(rets.slice(-60).reduce((a,b)=>a+b*b,0)/Math.min(60,rets.length))||0.01;
+    const Df=2-H;
+    let upCount=0; const quickSims=60;
+    for(let s=0;s<quickSims;s++){
+      let P=P0,Pp=Pprev;
+      for(let step2=1;step2<=horizon;step2++){
+        const r_prev=Math.log(P/Math.max(Pp,1e-10));
+        const sigT=vol*(1+0.35*Math.pow(Math.abs(r_prev),Math.max(0.3,Df/2)));
+        const forcing=regime.beta*Math.pow(Math.max(P/P0,0.001),Df)*Math.cos(omega*step2);
+        const momentum=regime.alpha*(P-Pp)/Math.max(P0,1e-10);
+        const mr=0.015*Math.log(ma20v/Math.max(P,1e-10));
+        let u=0,v2=0; while(u===0)u=Math.random(); while(v2===0)v2=Math.random();
+        const noise=Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v2);
+        const dLogP=clamp(mu+momentum+forcing+mr+sigT*noise,-0.25,0.25);
+        Pp=P; P=P*Math.exp(dLogP);
+      }
+      if(P>P0) upCount++;
+    }
+    const upProb=upCount/quickSims;
+    // v6.4: apply H-override to regime label in backtest too
+    const resolvedRegime=resolveRegimeLabel(regime.name,regime.trendingProb||0,H);
+    const isTrendingBt=resolvedRegime==='TRENDING'||resolvedRegime==='LEANING-TREND';
+    const upThreshBt=resolvedRegime==='LEANING-TREND'?0.62:0.58;
+
+    // Signal: trending-ish regime + MA alignment + up probability + not uncertain
+    const fired = upProb>upThreshBt && ma20v>ma50v && H>=0.45 &&
+                  isTrendingBt &&
+                  resolvedRegime!=='UNCERTAIN-BULL' && resolvedRegime!=='UNCERTAIN-BEAR';
+
+    if(!fired) continue;
+
+    // Outcome
+    const futureSlice=prices.slice(t, t+horizon);
+    if(futureSlice.length<horizon) continue;
+    const ret=(futureSlice[futureSlice.length-1]/prices[t]-1)*100;
+    const correct=(upProb>0.5&&ret>0)||(upProb<0.5&&ret<0);
+    const dateStr=ts[t]?new Date(ts[t]).toLocaleDateString():"—";
+
+    results.push({date:dateStr,H:H.toFixed(3),regime:resolvedRegime,
+                  upProb:(upProb*100).toFixed(1)+"%",
+                  ret:ret.toFixed(2)+"%", correct});
+    processed++;
+    if(processed%5===0) statusEl.textContent=`Running… ${processed} signals found so far`;
+  }
+
+  // Summary stats
+  const wins=results.filter(r=>r.correct).length;
+  const total=results.length;
+  const winRate=total>0?(wins/total*100).toFixed(1)+"%":"N/A";
+  const avgRet=total>0?(results.reduce((a,r)=>a+parseFloat(r.ret),0)/total).toFixed(2)+"%":"N/A";
+
+  statusEl.textContent=`Done — scanned ${prices.length} bars, found ${total} signals`;
+  summaryEl.textContent=total>0
+    ? `Signals fired: ${total}  |  Win rate: ${winRate}  |  Avg ${horizon}-day return: ${avgRet}\n`
+      +`Horizon: ${horizon} days  |  Rule: up>58% + MA20>MA50 + H≥0.45 + non-volatile/calm`
+    : "No signals fired under current rule set on this symbol/timeframe.";
+
+  if(!results.length){ resultsEl.innerHTML=`<div class="text-zinc-500">No signals to display.</div>`; return; }
+
+  resultsEl.innerHTML=`<table class="w-full text-left"><thead><tr class="text-zinc-500 border-b border-white/10">
+    <th class="pb-1 pr-3">Date</th><th class="pb-1 pr-3">H</th><th class="pb-1 pr-3">Regime</th>
+    <th class="pb-1 pr-3">Up%</th><th class="pb-1 pr-3">${horizon}d Return</th><th class="pb-1">Result</th>
+  </tr></thead><tbody>`+
+  results.slice(-60).reverse().map(r=>`<tr class="border-b border-white/5">
+    <td class="py-1 pr-3 text-zinc-400">${r.date}</td>
+    <td class="py-1 pr-3 font-mono">${r.H}</td>
+    <td class="py-1 pr-3 ${r.regime==='TRENDING'?'text-emerald-400':r.regime==='MEAN-REVERTING'?'text-red-400':'text-yellow-400'}">${r.regime}</td>
+    <td class="py-1 pr-3 font-mono">${r.upProb}</td>
+    <td class="py-1 pr-3 font-mono ${parseFloat(r.ret)>=0?'text-emerald-300':'text-red-300'}">${r.ret}</td>
+    <td class="py-1 ${r.correct?'text-emerald-400':'text-red-400'}">${r.correct?"✓":"✗"}</td>
+  </tr>`).join("")+`</tbody></table>`;
+}
+
+// ─── Watchlist ──────────────────────────────────────────
+function watchLoad(){watch=safeGet(WATCH_KEY,watch);if(!watch||typeof watch!=="object")watch={symbols:[]};watch.symbols=Array.isArray(watch.symbols)?watch.symbols:[];if(!watch.symbols.length)watch.symbols=["NVDA","AAPL","TSLA","BTC","ETH","SPY","XRP"];}
+function watchSave(){safeSet(WATCH_KEY,watch);}
+function watchAdd(){const v=norm(document.getElementById("wlAddInput").value);if(!v)return;if(!watch.symbols.includes(v))watch.symbols.unshift(v);watch.symbols=watch.symbols.slice(0,60);watchSave();document.getElementById("wlAddInput").value="";watchRefreshDebounced(0,true);}
+function watchRemove(sym){const s=norm(sym);watch.symbols=watch.symbols.filter(x=>norm(x)!==s);watchSave();watchRefreshDebounced(0,true);}
+function watchRenderSkeleton(){
+  const box=document.getElementById("watchListBox");
+  if(!watch.symbols.length){box.innerHTML=`<div class="text-xs text-zinc-500">No symbols in watchlist.</div>`;return;}
+  box.innerHTML=watch.symbols.slice(0,20).map(sym=>{const s=norm(sym);return `<div id="wl_${escapeHtml(s)}" class="mb-2 p-3 rounded-2xl pill"><div class="flex items-center justify-between"><div class="font-semibold text-cyan-200 cursor-pointer" onclick="loadAssetWithRealtime('${escapeHtml(s)}')">${escapeHtml(s)}</div><button class="text-xs px-3 py-2 rounded-2xl btnDanger" onclick="watchRemove('${escapeHtml(s)}')">Remove</button></div><div class="text-xs text-zinc-400 mt-1">Last: <span data-last>—</span> | H: <span data-hurst>—</span> | Up%: <span data-up>—</span> | Sim P/L: <span data-pl class="text-zinc-300">—</span></div></div>`;}).join("");
+}
+async function watchFetchLast(sym){
+  const s=norm(sym);
+  if(s===currentSymbol&&lastCandles?.c?.length)return Number(lastCandles.c[lastCandles.c.length-1]);
+  if(isCryptoSymbol(s)){const p=await coingeckoPriceUSD(s);if(p&&!p._err&&Number.isFinite(Number(p.price)))return Number(p.price);return null;}
+  const candles=await loadCandles(s,"1m");if(!candles||candles._err||!candles.c?.length)return null;
+  return Number(candles.c[candles.c.length-1]);
+}
+
+// FIX 4: watchlist cone cache — avoids re-running mfdeCone() on every refresh
+async function watchFetchConeData(sym){
+  const s=norm(sym);
+  // Use live cone for current symbol
+  if(s===currentSymbol&&lastCone?.params)return{upProb:lastCone.upProb,H:lastCone.params.H};
+  // Check cache (5-minute TTL)
+  const cached=watchConeCache.get(s);
+  if(cached&&(Date.now()-cached.ts)<300000) return cached.data;
+  // Compute fresh
+  const candles=await loadCandles(s,"6m");if(!candles||candles._err||!candles.c?.length)return null;
+  const prices=candles.c.map(Number);if(prices.length<60)return null;
+  const cone=mfdeCone(prices,candles,20,80);if(!cone?.params)return null;
+  const data={upProb:cone.upProb,H:cone.params.H};
+  watchConeCache.set(s,{ts:Date.now(),data});
+  return data;
+}
+let watchRefreshTimer=null,watchRefreshRunning=false;
+function watchRefreshDebounced(ms=900,force=false){if(watchRefreshTimer)clearTimeout(watchRefreshTimer);watchRefreshTimer=setTimeout(()=>watchRefresh(force),ms);}
+async function watchRefresh(force=false){
+  if(watchRefreshRunning)return; watchRefreshRunning=true; watchRenderSkeleton();
+  if(force) watchConeCache.clear(); // FIX 4: force=true clears the cache
+  for(const sym of watch.symbols.slice(0,20)){
+    const s=norm(sym),row=document.getElementById("wl_"+s);if(!row)continue;
+    const last=await watchFetchLast(s),coneData=await watchFetchConeData(s);
+    const lastTxt=Number.isFinite(last)?Number(last).toFixed(2):"—";
+    const upTxt=coneData?(coneData.upProb*100).toFixed(1)+"%":"—";
+    const hTxt=coneData?coneData.H.toFixed(3):"—";
+    const pos=sim.positions[s];let posTxt="—",posClass="text-zinc-300";
+    if(pos&&Number.isFinite(pos.qty)&&pos.qty!==0&&Number.isFinite(last)){const pl=(pos.qty*last)-(pos.qty*pos.avg);posTxt=(pl>=0?"+":"")+fmtMoney(pl);posClass=pl>=0?"text-emerald-300":"text-red-300";sim.positions[s].lastMark=last;}
+    const lastEl=row.querySelector("[data-last]"),upEl=row.querySelector("[data-up]"),hurstEl=row.querySelector("[data-hurst]"),plEl=row.querySelector("[data-pl]");
+    if(lastEl)lastEl.textContent=lastTxt; if(upEl)upEl.textContent=upTxt; if(hurstEl)hurstEl.textContent=hTxt;
+    if(plEl){plEl.textContent=posTxt;plEl.className=posClass;}
+  }
+  simSave();simUpdateHeader();watchRefreshRunning=false;
+  checkFreqMismatch(currentSymbol);
+}
+
+// ─── CSV export ─────────────────────────────────────────
+function downloadText(filename,text){const blob=new Blob([text],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);}
+function toCSV(rows){const esc=(v)=>{const s=String(v??"");if(s.includes(",")||s.includes('"')||s.includes("\n"))return '"'+s.replaceAll('"','""')+'"';return s;};return rows.map(r=>r.map(esc).join(",")).join("\n");}
+function exportAllCSV(){
+  const ts=new Date().toISOString().replaceAll(":","").slice(0,15);
+  const tradeRows=[["ts","symbol","side","qty","price","value","note"]];
+  for(const t of sim.trades)tradeRows.push([new Date(t.ts||Date.now()).toISOString(),t.sym,t.side,t.qty,t.price,t.value,t.note]);
+  downloadText(`lumina_trades_${ts}.csv`,toCSV(tradeRows));
+  const eqRows=[["ts","equity"]];for(const e of sim.equityCurve)eqRows.push([new Date(e.ts||Date.now()).toISOString(),e.equity]);
+  downloadText(`lumina_equity_${ts}.csv`,toCSV(eqRows));
+  const wlRows=[["symbol"]];for(const s of watch.symbols)wlRows.push([s]);
+  downloadText(`lumina_watchlist_${ts}.csv`,toCSV(wlRows));
+}
+
+// ─── Init ───────────────────────────────────────────────
+window.onload=()=>{
+  apiKey=safeGet("finnhubKey","");
+  simLoad(); watchLoad(); createTimeframeBtns();
+  document.getElementById("searchInput").addEventListener("keydown",e=>{if(e.key==="Enter")loadAssetWithRealtime(e.target.value);});
+  document.getElementById("mfdeOn").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("mfdeSteps").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("mfdeSims").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("maAnchorOn").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("returnClamp").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("noiseDist").addEventListener("change",()=>{fbmCache.clear();loadChartAndAnalysis();});
+  // v6.3 new controls
+  document.getElementById("caputoOn").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("freqComponents").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("hmmOn").addEventListener("change",()=>loadChartAndAnalysis());
+  document.getElementById("lookbackMode").addEventListener("change",()=>{hurstSmoother.delete(currentSymbol);fbmCache.clear();loadChartAndAnalysis();});
+  simUpdateHeader(); simTypeChanged(); simShowTab("ticket"); watchRenderSkeleton(); watchRefreshDebounced(0,true);
+  loadAssetWithRealtime("NVDA");
+  if(apiKey){applyRealtime();loadMarketNews(false);loadAssetNews(currentSymbol,false);}
+  else setRTStatus("Enter Finnhub key (🔑) to start",false);
+};
+</script>
+
+</body>
+</html>
